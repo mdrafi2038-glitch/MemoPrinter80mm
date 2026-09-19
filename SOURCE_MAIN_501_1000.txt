@@ -1,3 +1,9 @@
+        q.setInputType(android.text.InputType.TYPE_CLASS_TEXT); p.setInputType(android.text.InputType.TYPE_CLASS_TEXT); l.addView(label("পণ্য নাম")); l.addView(n); l.addView(gap(8)); l.addView(label("পরিমাণ (pcs)")); l.addView(q); l.addView(gap(8)); l.addView(label("প্রতি পিস দাম")); l.addView(p); l.addView(gap(8));
+        TextView calc=tv("Amount: ৳০",17,BLUE); calc.setTypeface(Typeface.DEFAULT,Typeface.BOLD); calc.setPadding(dp(5),dp(5),dp(5),dp(8)); l.addView(calc);
+        if(editIndex>=0 && editIndex<items.size()){ Item x=items.get(editIndex); n.setText(x.name); q.setText(x.qty); p.setText(x.price); }
+        n.setOnFocusChangeListener((v,has)->{ if(!has){Double d=findPrice(n.getText().toString().trim()); if(d!=null && p.getText().toString().trim().isEmpty()) p.setText(bn(formatNumber(d))); updateCalc(q,p,calc);} });
+        n.addTextChangedListener(watcher(q,p,calc)); q.addTextChangedListener(watcher(q,p,calc)); p.addTextChangedListener(watcher(q,p,calc)); updateCalc(q,p,calc);
+        AlertDialog dlg=new AlertDialog.Builder(this).setTitle(editIndex>=0?"পণ্য পরিবর্তন":"পণ্য যোগ করুন").setView(l).setNegativeButton("বাতিল",null).setPositiveButton(editIndex>=0?"আপডেট":"যোগ করুন",null).create();
         dlg.setOnShowListener(x->{dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String name=n.getText().toString().trim(); double qty=num(q.getText().toString()), price=num(p.getText().toString()); if(name.isEmpty()){n.setError("পণ্যের নাম দিন");return;} if(qty<=0){q.setError("পরিমাণ দিন");return;} if(price<=0){Double d=findPrice(name); if(d!=null)price=d;} if(price<=0){p.setError("দাম দিন");return;} Item item=new Item(name,bn(formatNumber(qty)),bn(formatNumber(price)),bn(formatNumber(qty*price))); if(editIndex>=0)items.set(editIndex,item);else items.add(item); refreshProducts(); dlg.dismiss();});});
         dlg.getWindow(); dlg.show();
     }
