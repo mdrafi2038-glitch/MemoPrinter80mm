@@ -1,0 +1,545 @@
+--- FILE LIST ---
+./MainActivity.new.java
+./README_FIRST.txt
+./app/build.gradle
+./app/src/main/AndroidManifest.xml
+./app/src/main/assets/NotoSansBengali-Bold.ttf
+./app/src/main/assets/NotoSansBengali-Regular.ttf
+./app/src/main/java/com/memoprinter/eighty/MainActivity.java
+./app/src/main/res/drawable-nodpi/memo_template.jpg
+./app/src/main/res/values/strings.xml
+./app/src/main/res/values/styles.xml
+./build.gradle
+./gradle.properties
+./settings.gradle
+
+--- MANIFEST ---
+app/src/main/AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <application android:theme="@style/AppTheme" android:label="Memo Printer 80mm" android:allowBackup="true" android:supportsRtl="true">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity>
+    </application>
+</manifest>
+
+--- MAIN ACTIVITY FILES ---
+### app/src/main/java/com/memoprinter/eighty/MainActivity.java
+package com.memoprinter.eighty;
+
+import android.Manifest;
+import android.app.*;
+import android.bluetooth.*;
+import android.content.*;
+import android.content.pm.PackageManager;
+import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
+import android.os.*;
+import android.text.*;
+import android.view.*;
+import android.view.inputmethod.InputMethodManager;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import android.widget.*;
+import org.json.*;
+import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+public class MainActivity extends Activity {
+    static final int BLUE=Color.rgb(37,99,235), BLUE_DARK=Color.rgb(30,64,175), TEXT=Color.rgb(15,23,42), MUTED=Color.rgb(100,116,139), BG=Color.rgb(246,248,252), WHITE=Color.WHITE, BORDER=Color.rgb(226,232,240), GREEN=Color.rgb(16,185,129), RED=Color.rgb(239,68,68);
+    static final String SPP="00001101-0000-1000-8000-00805F9B34FB";
+    final ArrayList<Item> items=new ArrayList<>();
+    final LinkedHashMap<String,Double> prices=new LinkedHashMap<>();
+    final ArrayList<Memo> history=new ArrayList<>();
+    BluetoothAdapter bt; BluetoothSocket socket; String printerName="", printerMac="";
+    int memoNo=1;
+    String currentScreen="home";
+    final ArrayDeque<String> backStack=new ArrayDeque<>();
+    boolean restoringScreen=false;
+    EditText customer,address; TextView totalView, countView, dateView; Switch autoPrint; double discountAmount=0; String manualDate=""; LinearLayout productList,root; ImageView livePreview; Typeface memoRegular, memoBold;
+
+    static class Item { String name,qty,price,amount; Item(String n,String q,String p,String a){name=n;qty=q;price=p;amount=a;} }
+    static class Memo { int no; String date,name,address; ArrayList<Item> items=new ArrayList<>(); double subtotal,discount,total; }
+
+    @Override public void onCreate(Bundle b){ super.onCreate(b);
+        // Android 15 enforces edge-to-edge for modern target SDKs. Draw behind the
+        // system bars, then apply their real insets to the root container (SafeArea).
+        if(Build.VERSION.SDK_INT>=30){
+            getWindow().setDecorFitsSystemWindows(false);
+            getWindow().setStatusBarColor(Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(Color.TRANSPARENT);
+            getWindow().setStatusBarContrastEnforced(false);
+            getWindow().setNavigationBarContrastEnforced(false);
+        } else {
+            getWindow().setStatusBarColor(WHITE);
+            getWindow().setNavigationBarColor(BG);
+        }
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        if(Build.VERSION.SDK_INT>=23) getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        try { memoRegular=Typeface.createFromAsset(getAssets(),"NotoSansBengali-Regular.ttf"); } catch(Throwable ignored) { memoRegular=Typeface.create("sans-serif",Typeface.NORMAL); }
+        try { memoBold=Typeface.createFromAsset(getAssets(),"NotoSansBengali-Bold.ttf"); } catch(Throwable ignored) { memoBold=Typeface.create("sans-serif",Typeface.BOLD); }
+        memoNo=getPreferences(0).getInt("memo",1); if(memoNo<1 || memoNo>999999){ memoNo=1; } loadPrices(); loadHistory(); loadPrinter(); home();
+        if(Build.VERSION.SDK_INT>=33){
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::goBack);
+        }
+        if(Build.VERSION.SDK_INT>=31 && checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)!=PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[]{Manifest.permission.BLUETOOTH_CONNECT,Manifest.permission.BLUETOOTH_SCAN},10);
+    }
+
+    int dp(int v){ return Math.round(v * getResources().getDisplayMetrics().density); }
+    TextView tv(String s,float sp,int color){ TextView t=new TextView(this); t.setText(s); t.setTextSize(sp); t.setTextColor(color); t.setGravity(Gravity.CENTER_VERTICAL); return t; }
+    GradientDrawable shape(int color,float r){ GradientDrawable g=new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(Math.round(r))); return g; }
+    GradientDrawable outline(int fill,int stroke,float r){ GradientDrawable g=shape(fill,r); g.setStroke(dp(1),stroke); return g; }
+    View gap(int h){ Space s=new Space(this); s.setLayoutParams(new LinearLayout.LayoutParams(1,dp(h))); return s; }
+    Button action(String label){ Button b=new Button(this); b.setText(label); b.setTextSize(14); b.setTextColor(WHITE); b.setAllCaps(false); b.setGravity(Gravity.CENTER); b.setBackground(shape(BLUE,18)); b.setPadding(dp(14),0,dp(14),0); return b; }
+    Button lightAction(String label){ Button b=new Button(this); b.setText(label); b.setTextSize(13); b.setTextColor(BLUE_DARK); b.setAllCaps(false); b.setBackground(outline(WHITE,BORDER,16)); b.setPadding(dp(12),0,dp(12),0); return b; }
+    EditText input(String hint){ EditText e=new EditText(this); e.setHint(hint); e.setTextSize(16); e.setTextColor(TEXT); e.setHintTextColor(MUTED); e.setPadding(dp(15),0,dp(15),0); e.setSingleLine(true); e.setBackground(outline(WHITE,BORDER,15)); e.setMinHeight(dp(52)); return e; }
+    TextView label(String s){ TextView t=tv(s,13,MUTED); t.setTypeface(Typeface.DEFAULT,Typeface.BOLD); t.setPadding(dp(2),0,dp(2),dp(6)); return t; }
+    LinearLayout card(){ LinearLayout c=new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL); c.setPadding(dp(16),dp(15),dp(16),dp(15)); c.setBackground(outline(WHITE,BORDER,22)); return c; }
+
+    void openScreen(String name){
+        if(restoringScreen){ currentScreen=name; return; }
+        if(!name.equals(currentScreen)) backStack.push(currentScreen);
+        currentScreen=name;
+    }
+
+    @Override public void onBackPressed(){
+        if(root==null){ super.onBackPressed(); return; }
+        if(!backStack.isEmpty()){
+            String previous=backStack.pop();
+            restoringScreen=true;
+            renderScreen(previous);
+            restoringScreen=false;
+        } else if(!"home".equals(currentScreen)){
+            restoringScreen=true; home(); restoringScreen=false;
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    void goBack(){ onBackPressed(); }
+
+    void renderScreen(String name){
+        if("newMemo".equals(name)) newMemo();
+        else if("saved".equals(name)) savedMemos();
+        else if("printer".equals(name)) printerScreen();
+        else if("settings".equals(name)) settings();
+        else home();
+    }
+
+    // Safe-area handling for modern Android / edge-to-edge devices.
+    // Keep the app content below the status bar and above the navigation/gesture area.
+    void applyWindowInsets(View v){
+        final int left=v.getPaddingLeft();
+        final int top=v.getPaddingTop();
+        final int right=v.getPaddingRight();
+        final int bottom=v.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(v, (view, insets) -> {
+            Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(left + bars.left, top + bars.top, right + bars.right, bottom + bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(v);
+    }
+
+    void shell(String title,String subtitle,boolean back){
+        root=new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(BG);
+        root.setFitsSystemWindows(false);
+
+        // Keep the window in the normal (non edge-to-edge) layout mode. This avoids
+        // Android 15 status-bar/notch overlap while still working on older devices.
+        if(Build.VERSION.SDK_INT>=30){
+            getWindow().setDecorFitsSystemWindows(true);
+            getWindow().setStatusBarColor(WHITE);
+            getWindow().setNavigationBarColor(BG);
+        }
+
+        LinearLayout bar=new LinearLayout(this);
+        bar.setTag("APP_TOOLBAR");
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(dp(8),0,dp(12),0);
+        bar.setBackgroundColor(WHITE);
+        bar.setMinimumHeight(dp(64));
+
+        if(back){
+            TextView x=tv("‹",36,TEXT);
+            x.setGravity(Gravity.CENTER);
+            x.setContentDescription("Back");
+            bar.addView(x,new LinearLayout.LayoutParams(dp(48),dp(64)));
+            x.setOnClickListener(v->goBack());
+        }
+        LinearLayout tt=new LinearLayout(this);
+        tt.setOrientation(LinearLayout.VERTICAL);
+        tt.setGravity(Gravity.CENTER_VERTICAL);
+        TextView a=tv(title,21,TEXT);
+        a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        TextView cc=tv(subtitle,12,MUTED);
+        tt.addView(a,new LinearLayout.LayoutParams(-1,dp(30)));
+        tt.addView(cc,new LinearLayout.LayoutParams(-1,dp(22)));
+        bar.addView(tt,new LinearLayout.LayoutParams(0,dp(64),1));
+        root.addView(bar,new LinearLayout.LayoutParams(-1,dp(64)));
+        setContentView(root);
+    }
+    ScrollView scroll(){
+        ScrollView s=new ScrollView(this);
+        s.setFillViewport(true);
+        s.setClipToPadding(false);
+        LinearLayout c=new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(16),dp(16),dp(16),dp(28));
+        // MATCH_PARENT + fillViewport makes the content occupy the available height;
+        // it still grows beyond the viewport when there is more content to scroll.
+        s.addView(c,new ScrollView.LayoutParams(-1,-1));
+        root.addView(s,new LinearLayout.LayoutParams(-1,0,1));
+        return s;
+    }
+    LinearLayout content(ScrollView s){ return (LinearLayout)s.getChildAt(0); }
+    TextView section(String s){ TextView t=tv(s,15,TEXT); t.setTypeface(Typeface.DEFAULT,Typeface.BOLD); t.setPadding(dp(2),dp(7),dp(2),dp(8)); return t; }
+
+    void home(){
+        if(!restoringScreen){ currentScreen="home"; backStack.clear(); }
+        shell("Memo Printer 80mm","বাংলা মেমো • Bluetooth Thermal Printer",false);
+
+        ScrollView sv=new ScrollView(this);
+        sv.setFillViewport(true);
+        sv.setClipToPadding(false);
+        sv.setBackgroundColor(BG);
+        LinearLayout c=new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(16),dp(16),dp(16),dp(20));
+        sv.addView(c,new ScrollView.LayoutParams(-1,-2));
+        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+
+        LinearLayout hero=card();
+        hero.setPadding(dp(20),dp(18),dp(20),dp(16));
+        hero.setBackground(shape(BLUE,24));
+        TextView h=tv("মেমো টাইপ করে\nঅটো প্রিন্ট করুন",25,WHITE);
+        h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        hero.addView(h,new LinearLayout.LayoutParams(-1,0,1));
+        hero.addView(tv("সহজে অর্ডার লিখুন • অটো হিসাব • 80mm Print",13,0xFFE0E7FF));
+        c.addView(hero);
+        c.addView(gap(10));
+
+        LinearLayout r1=new LinearLayout(this); r1.setOrientation(LinearLayout.HORIZONTAL);
+        homeCard(r1,"🧾","Manual Memo","নিজে product যোগ করুন",v->newMemo());
+        homeCard(r1,"⚡","Automatic Input","লাইন লিখে অটো মেমো",v->automaticInput());
+        c.addView(r1,new LinearLayout.LayoutParams(-1,dp(142)));
+        c.addView(gap(10));
+
+        LinearLayout r2=new LinearLayout(this); r2.setOrientation(LinearLayout.HORIZONTAL);
+        homeCard(r2,"📚","Saved Memos","পুরনো মেমো",v->savedMemos());
+        homeCard(r2,"🖨","Bluetooth","Printer connect",v->printerScreen());
+        c.addView(r2,new LinearLayout.LayoutParams(-1,dp(142)));
+        c.addView(gap(10));
+
+        LinearLayout r3=new LinearLayout(this); r3.setOrientation(LinearLayout.HORIZONTAL);
+        homeCard(r3,"⚙","Settings","পণ্য ও দাম",v->settings());
+        homeCard(r3,"✎","Help","Manual + Automatic Input",v->toast("Manual Memo বা Automatic Input বেছে নিন"));
+        c.addView(r3,new LinearLayout.LayoutParams(-1,dp(142)));
+        c.addView(gap(10));
+
+        LinearLayout info=card();
+        TextView feature=tv("✓ বাংলা সংখ্যা ও বাংলা quantity/price\n✓ Quantity × default price = amount\n✓ Original memo template + LIVE preview + bitmap print\n✓ Local saved history",13,TEXT);
+        feature.setGravity(Gravity.CENTER_VERTICAL);
+        info.addView(feature,new LinearLayout.LayoutParams(-1,dp(105)));
+        c.addView(info);
+
+        // On tall phones, distribute the available height instead of leaving a
+        // large white block at the bottom. On short phones, normal scrolling remains.
+        sv.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            int available=b-t-sv.getPaddingTop()-sv.getPaddingBottom();
+            int used=dp(142+142+142+105+30+16+20+64); // content + gaps + margins
+            int extra=available-used;
+            if(extra>0){
+                int add=extra/4;
+                setHeight(hero,dp(150)+add);
+                setHeight(r1,dp(142)+add);
+                setHeight(r2,dp(142)+add);
+                setHeight(r3,dp(142)+add);
+                setHeight(info,dp(105)+add);
+            }
+        });
+    }
+    void setHeight(View v,int h){ ViewGroup.LayoutParams lp=v.getLayoutParams(); if(lp!=null && lp.height!=h){lp.height=h;v.setLayoutParams(lp);} }
+    void homeCard(LinearLayout row,String icon,String title,String sub,View.OnClickListener click){ LinearLayout c=card(); c.setOnClickListener(click); c.setPadding(dp(14),dp(13),dp(10),dp(12)); TextView i=tv(icon,25,TEXT); i.setGravity(Gravity.CENTER_VERTICAL); c.addView(i,new LinearLayout.LayoutParams(-1,dp(35))); TextView a=tv(title,16,TEXT); a.setTypeface(Typeface.DEFAULT,Typeface.BOLD); c.addView(a); c.addView(tv(sub,12,MUTED)); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-1,1); p.setMargins(0,0,dp(5),0); row.addView(c,p); }
+
+    void newMemo(){
+        boolean wasNewScreen = !"newMemo".equals(currentScreen);
+        openScreen("newMemo");
+        if(wasNewScreen){ items.clear(); discountAmount=0; manualDate=""; }
+        shell("নতুন তৈরি করুন","মেমো নং "+memoLabel(memoNo)+" • তারিখ পরিবর্তন করা যাবে",true);
+        ScrollView sv=scroll(); LinearLayout c=content(sv);
+
+        LinearLayout info=card(); info.addView(section("কাস্টমার তথ্য"));
+        info.addView(label("কাস্টমারের নাম")); customer=input("কাস্টমারের নাম লিখুন"); info.addView(customer); info.addView(gap(10));
+        info.addView(label("ঠিকানা")); address=input("ঠিকানা লিখুন"); address.setSingleLine(false); address.setMinLines(2); address.setGravity(Gravity.TOP); address.setPadding(dp(15),dp(12),dp(15),dp(12)); info.addView(address);
+        c.addView(info); c.addView(gap(12));
+
+        LinearLayout dateCard=card();
+        LinearLayout dateRow=new LinearLayout(this); dateRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout dateInfo=new LinearLayout(this); dateInfo.setOrientation(LinearLayout.VERTICAL);
+        dateInfo.addView(tv("মেমোর তারিখ",13,MUTED));
+        dateView=tv(displayMemoDate(),18,TEXT); dateView.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        dateInfo.addView(dateView);
+        dateRow.addView(dateInfo,new LinearLayout.LayoutParams(0,dp(56),1));
+        Button editDate=lightAction("✎  Edit Date"); editDate.setOnClickListener(v->dateDialog());
+        dateRow.addView(editDate,new LinearLayout.LayoutParams(dp(120),dp(50)));
+        dateCard.addView(dateRow);
+        c.addView(dateCard); c.addView(gap(12));
+
+        LinearLayout prod=card(); LinearLayout ph=new LinearLayout(this); ph.setGravity(Gravity.CENTER_VERTICAL); TextView st=section("পণ্য তালিকা"); ph.addView(st,new LinearLayout.LayoutParams(0,dp(40),1)); countView=tv("০ পণ্য",12,MUTED); ph.addView(countView); prod.addView(ph);
+        productList=new LinearLayout(this); productList.setOrientation(LinearLayout.VERTICAL); prod.addView(productList);
+        Button manualAdd=action("＋  Manual Add"); manualAdd.setTextSize(13); manualAdd.setOnClickListener(v->addProductDialog(-1));
+        prod.addView(gap(10)); prod.addView(manualAdd,new LinearLayout.LayoutParams(-1,dp(50))); c.addView(prod); c.addView(gap(12));
+
+        LinearLayout sum=card(); sum.setPadding(dp(18),dp(15),dp(18),dp(15)); totalView=tv("মোট টাকা: ৳০",21,TEXT); totalView.setGravity(Gravity.RIGHT); totalView.setTypeface(Typeface.DEFAULT,Typeface.BOLD); sum.addView(totalView);
+        autoPrint=new Switch(this); autoPrint.setText("সেভ করলে Auto Print"); autoPrint.setTextSize(14); autoPrint.setTextColor(TEXT); sum.addView(autoPrint); c.addView(sum); c.addView(gap(12));
+
+        LinearLayout buttons=new LinearLayout(this);
+        Button save=action("💾  Save Memo"); save.setTextSize(13); save.setOnClickListener(v->saveAndMaybePrint());
+        buttons.addView(save,new LinearLayout.LayoutParams(0,dp(50),1));
+        Button discountBtn=lightAction("−  Discount"); discountBtn.setTextSize(13);
+        discountBtn.setOnClickListener(v->discountDialog(discountBtn));
+        LinearLayout.LayoutParams discountLp=new LinearLayout.LayoutParams(0,dp(50),1); discountLp.setMargins(dp(6),0,dp(6),0);
+        buttons.addView(discountBtn,discountLp);
+        Button previewBtn=lightAction("👁  Preview"); previewBtn.setTextSize(13); previewBtn.setOnClickListener(v->previewMemo());
+        buttons.addView(previewBtn,new LinearLayout.LayoutParams(0,dp(50),1));
+        c.addView(buttons); c.addView(gap(12));
+
+        LinearLayout liveCard=card(); TextView liveTitle=tv("LIVE PREVIEW • 80mm",15,TEXT); liveTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD); liveCard.addView(liveTitle);
+        livePreview=new ImageView(this);
+        livePreview.setAdjustViewBounds(true);
+        livePreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        livePreview.setBackgroundColor(WHITE);
+        livePreview.setContentDescription("Live memo preview");
+        livePreview.setOnClickListener(v->previewMemo());
+        LinearLayout.LayoutParams liveLp=new LinearLayout.LayoutParams(-1,dp(620));
+        liveLp.setMargins(0,dp(8),0,0);
+        liveCard.addView(livePreview,liveLp);
+        c.addView(liveCard);
+        customer.addTextChangedListener(simpleWatcher()); address.addTextChangedListener(simpleWatcher());
+        refreshProducts(); updateLivePreview();
+    }
+    android.text.TextWatcher simpleWatcher(){ return new android.text.TextWatcher(){ public void beforeTextChanged(CharSequence s,int a,int b,int c){} public void onTextChanged(CharSequence s,int a,int b,int c){updateLivePreview(); if(livePreview!=null) livePreview.post(()->updateLivePreview());} public void afterTextChanged(Editable e){} }; }
+    void updateLivePreview(){
+        if(livePreview==null) return;
+        livePreview.post(() -> {
+            try {
+                Memo m=readMemo();
+                Bitmap bm=renderMemo(m);
+                livePreview.setImageBitmap(bm);
+                livePreview.setVisibility(View.VISIBLE);
+                livePreview.invalidate();
+            } catch(Throwable e) {
+                livePreview.setImageDrawable(null);
+                livePreview.setContentDescription("Preview render error");
+                Toast.makeText(MainActivity.this, "Preview render error", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    void dateDialog(){
+        Calendar c=Calendar.getInstance();
+        String current=displayMemoDate();
+        try{ c.setTime(new SimpleDateFormat("dd/MM/yyyy",Locale.getDefault()).parse(current)); }catch(Exception ignored){}
+        DatePickerDialog dlg=new DatePickerDialog(this,(view,year,month,day)->{
+            manualDate=String.format(Locale.US,"%02d/%02d/%04d",day,month+1,year);
+            if(dateView!=null) dateView.setText(displayMemoDate());
+            updateLivePreview();
+        },c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH));
+        dlg.setTitle("মেমোর তারিখ");
+        dlg.setButton(DialogInterface.BUTTON_NEUTRAL,"পরের দিনের তারিখ",(d,w)->{ manualDate=""; if(dateView!=null)dateView.setText(displayMemoDate()); updateLivePreview(); });
+        dlg.show();
+    }
+    String displayMemoDate(){ return manualDate==null||manualDate.trim().isEmpty()?memoDate():manualDate; }
+
+    void automaticInput(){
+        openScreen("automatic");
+        shell("Automatic Memo", "ইংলিশ বা বাংলা লিখুন • অটো বাংলা নাম", true);
+        ScrollView sv=scroll(); LinearLayout c=content(sv);
+
+        LinearLayout info=card();
+        info.addView(tv("⚡ Automatic Input",20,TEXT));
+        info.addView(gap(4));
+        TextView help=tv("প্রথম লাইনে Customer Name\nএরপর: Product-Quantity\nEnglish লিখলেও নাম বাংলা phonetic-এ convert হবে।\nউদাহরণ: Rafi Store / Pata-6 / Pata k-6",13,MUTED);
+        help.setPadding(0,0,0,dp(10)); info.addView(help);
+        final EditText box=input("Rafi Store\nPata-6\nPata k-6");
+        box.setSingleLine(false); box.setMinLines(8); box.setGravity(Gravity.TOP); box.setPadding(dp(15),dp(12),dp(15),dp(12));
+        info.addView(box); c.addView(info); c.addView(gap(12));
+
+        Button complete=action("⚡  Automatic Memo তৈরি করুন");
+        complete.setOnClickListener(v->{
+            ParsedInput parsed=parseAutomaticInput(box.getText().toString());
+            if(parsed.error!=null){box.setError(parsed.error); return;}
+            // Open the regular editor only after automatic parsing is complete.
+            // The Automatic Input option itself remains a separate home-menu option.
+            newMemo();
+            if(customer!=null) customer.setText(parsed.customer);
+            if(address!=null) address.setText(parsed.address);
+            items.clear(); items.addAll(parsed.items);
+            discountAmount=0;
+            refreshProducts();
+            toast("Automatic memo complete হয়েছে ✓");
+        });
+        c.addView(complete); c.addView(gap(12));
+
+        LinearLayout note=card();
+        note.addView(tv("বাংলা conversion",15,TEXT));
+        note.addView(tv("Pata → পাতা     Rafi Store → রাফি স্টোর\nPata k → পাতা কে",14,MUTED));
+        c.addView(note);
+    }
+
+    static class ParsedInput { String customer="",address="",error=null; ArrayList<Item> items=new ArrayList<>(); }
+
+    ParsedInput parseAutomaticInput(String raw){
+        ParsedInput out=new ParsedInput();
+        String[] lines=raw==null?new String[0]:raw.split("\\r?\\n");
+        ArrayList<String> clean=new ArrayList<>();
+        for(String line:lines){String z=line.trim(); if(!z.isEmpty()) clean.add(z);}
+        if(clean.size()<2){out.error="Customer এবং কমপক্ষে ১টি product দিন"; return out;}
+        out.customer=phoneticBangla(clean.get(0));
+        for(int i=1;i<clean.size();i++){
+            String line=clean.get(i);
+            if(line.startsWith("ঠিকানা:")){out.address=phoneticBangla(line.substring("ঠিকানা:".length()).trim()); continue;}
+            if(line.toLowerCase(Locale.ROOT).startsWith("address:")){out.address=phoneticBangla(line.substring("address:".length()).trim()); continue;}
+            int dash=line.lastIndexOf('-');
+            if(dash<=0 || dash>=line.length()-1){out.error="এই format ভুল: "+line+" (Product-Quantity)"; return out;}
+            String rawName=line.substring(0,dash).trim(); String qtyText=line.substring(dash+1).trim(); double qty=num(qtyText);
+            if(rawName.isEmpty()||qty<=0){out.error="Product-Quantity ঠিকভাবে দিন: "+line; return out;}
+            String bnName=phoneticBangla(rawName);
+            Double price=findPriceAny(rawName,bnName);
+            if(price==null){out.error="Default price নেই: "+rawName+"\nSettings-এ এই product-এর price save করুন"; return out;}
+            out.items.add(new Item(bnName,bn(formatNumber(qty)),bn(formatNumber(price)),bn(formatNumber(qty*price))));
+        }
+        if(out.items.isEmpty()){out.error="কমপক্ষে ১টি product দিন"; return out;}
+        if(out.items.size()>9){out.error="সর্বোচ্চ ৯টি product দিন"; return out;}
+        return out;
+    }
+
+    Double findPriceAny(String raw,String converted){
+        Double p=findPrice(raw); if(p!=null)return p;
+        p=findPrice(converted); if(p!=null)return p;
+        String nr=normalizeLatin(raw), nc=normalizeBangla(converted);
+        for(String k:prices.keySet()){
+            if(normalizeLatin(k).equals(nr) || normalizeBangla(k).equals(nc)) return prices.get(k);
+        }
+        return null;
+    }
+
+    String normalizeLatin(String s){return s==null?"":s.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]","");}
+    String normalizeBangla(String s){return s==null?"":s.replaceAll("[ \u09cd\u09be-\u09cc\u09d7]","");}
+
+    String phoneticBangla(String input){
+        if(input==null||input.trim().isEmpty()) return "";
+        String src=input.trim();
+        boolean hasBangla=false;
+        for(int i=0;i<src.length();i++){char ch=src.charAt(i); if(ch>='\u0980'&&ch<='\u09ff'){hasBangla=true;break;}}
+        if(hasBangla) return src;
+        StringBuilder result=new StringBuilder();
+        String[] words=src.toLowerCase(Locale.ROOT).split("\\s+");
+        for(int wi=0;wi<words.length;wi++){
+            if(wi>0) result.append(' ');
+            result.append(transliterateWord(words[wi]));
+        }
+        return result.toString();
+    }
+
+    String transliterateWord(String w){
+        if(w==null||w.isEmpty()) return "";
+        String special=SPECIAL_WORDS.get(w);
+        if(special!=null) return special;
+        // Common Bangla phonetic spellings used in order/memo names.
+        String[][] whole={
+            {"store","স্টোর"},{"shop","শপ"},{"traders","ট্রেডার্স"},{"trader","ট্রেডার"},
+            {"pata","পাতা"},{"patak","পাতা কে"},{"masala","মসলা"},{"noodles","নুডলস"},
+            {"pran","প্রাণ"},{"rafi","রাফি"},{"rahim","রহিম"},{"karim","করিম"},
+            {"korian","করিয়ান"},{"korean","কোরিয়ান"},{"rice","রাইস"},{"oil","অয়েল"},
+            {"salt","লবণ"},{"sugar","চিনি"},{"biscuit","বিস্কুট"},{"milk","মিল্ক"},{"k","কে"}
+        };
+        for(String[] x:whole) if(x[0].equals(w)) return x[1];
+        return genericPhonetic(w);
+    }
+
+    String genericPhonetic(String s){
+        // Lightweight offline phonetic transliteration. It preserves a normal
+        // readable Bengali form and is intentionally editable after conversion.
+        StringBuilder out=new StringBuilder(); int i=0; boolean afterConsonant=false;
+        while(i<s.length()){
+            if(Character.isDigit(s.charAt(i))){out.append(s.charAt(i));i++;continue;}
+            String tri=i+3<=s.length()?s.substring(i,i+3):"";
+            String bi=i+2<=s.length()?s.substring(i,i+2):"";
+            String one=s.substring(i,i+1);
+            String cluster=LATIN_CLUSTERS.get(tri);
+            if(cluster!=null){out.append(cluster);i+=3;afterConsonant=true;continue;}
+            cluster=LATIN_CLUSTERS.get(bi);
+            if(cluster!=null){out.append(cluster);i+=2;afterConsonant=true;continue;}
+            String vowel=VOWELS.get(one);
+            if(vowel!=null){
+                if(afterConsonant){out.append(vowel);}
+                else out.append(vowel.length()==1&&vowel.equals("া")?"আ":vowel);
+                i++; afterConsonant=false; continue;
+            }
+            String con=CONSONANTS.get(one);
+            if(con!=null){out.append(con);i++;afterConsonant=true;continue;}
+            out.append(s.charAt(i));i++;afterConsonant=false;
+        }
+        return out.toString();
+    }
+
+    static final Map<String,String> SPECIAL_WORDS=new HashMap<>();
+    static final Map<String,String> LATIN_CLUSTERS=new HashMap<>();
+    static final Map<String,String> CONSONANTS=new HashMap<>();
+    static final Map<String,String> VOWELS=new HashMap<>();
+    static {
+        String[][] special={
+            {"rafi store","রাফি স্টোর"},{"rafi","রাফি"},{"pata","পাতা"},{"pata k","পাতা কে"},
+            {"pata-k","পাতা কে"},{"rahim traders","রহিম ট্রেডার্স"},{"rafi traders","রাফি ট্রেডার্স"}
+        };
+        for(String[] x:special) SPECIAL_WORDS.put(x[0],x[1]);
+        String[][] cl={
+            {"chh","ছ"},{"tth","ট"},{"ddh","ঢ"},{"dh","ধ"},{"bh","ভ"},{"ph","ফ"},{"th","থ"},{"kh","খ"},{"gh","ঘ"},{"sh","শ"},{"ch","চ"},{"jh","ঝ"},{"ng","ং"},{"ny","ঞ"},{"tr","ত্র"},{"dr","দ্র"},{"pr","প্র"},{"br","ব্র"},{"kr","ক্র"},{"gr","গ্র"},{"fr","ফ্র"},{"st","স্ট"},{"sk","স্ক"},{"sp","স্প"},{"sw","স্ব"},{"str","স্ট্র"},{"kt","ক্ত"}
+        };
+        for(String[] x:cl)LATIN_CLUSTERS.put(x[0],x[1]);
+        String[][] con={
+            {"b","ব"},{"c","ক"},{"d","দ"},{"f","ফ"},{"g","গ"},{"h","হ"},{"j","জ"},{"k","ক"},{"l","ল"},{"m","ম"},{"n","ন"},{"p","প"},{"q","ক"},{"r","র"},{"s","স"},{"t","ত"},{"v","ভ"},{"w","ও"},{"x","ক্স"},{"y","য়"},{"z","জ"}
+        };
+        for(String[] x:con)CONSONANTS.put(x[0],x[1]);
+        String[][] vo={
+            {"a","া"},{"e","ে"},{"i","ি"},{"o","ো"},{"u","ু"}
+        };
+        for(String[] x:vo)VOWELS.put(x[0],x[1]);
+    }
+
+    void addProductDialog(final int editIndex){
+        if(editIndex<0 && items.size()>=9){ toast("সর্বোচ্চ ১০টি পণ্য যোগ করা যাবে (মোটের জন্য শেষ ঘর রাখা হয়েছে)"); return; }
+        final LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(4),dp(2),dp(4),dp(2));
+        final EditText n=input("পণ্যের নাম"); final EditText q=input("পরিমাণ — ২ / 2"); final EditText p=input("প্রতি পিস দাম — ২৫ / 25");
+        q.setInputType(android.text.InputType.TYPE_CLASS_TEXT); p.setInputType(android.text.InputType.TYPE_CLASS_TEXT); l.addView(label("পণ্য নাম")); l.addView(n); l.addView(gap(8)); l.addView(label("পরিমাণ (pcs)")); l.addView(q); l.addView(gap(8)); l.addView(label("প্রতি পিস দাম")); l.addView(p); l.addView(gap(8));
+        TextView calc=tv("Amount: ৳০",17,BLUE); calc.setTypeface(Typeface.DEFAULT,Typeface.BOLD); calc.setPadding(dp(5),dp(5),dp(5),dp(8)); l.addView(calc);
+        if(editIndex>=0 && editIndex<items.size()){ Item x=items.get(editIndex); n.setText(x.name); q.setText(x.qty); p.setText(x.price); }
+        n.setOnFocusChangeListener((v,has)->{ if(!has){Double d=findPrice(n.getText().toString().trim()); if(d!=null && p.getText().toString().trim().isEmpty()) p.setText(bn(formatNumber(d))); updateCalc(q,p,calc);} });
+        n.addTextChangedListener(watcher(q,p,calc)); q.addTextChangedListener(watcher(q,p,calc)); p.addTextChangedListener(watcher(q,p,calc)); updateCalc(q,p,calc);
+        AlertDialog dlg=new AlertDialog.Builder(this).setTitle(editIndex>=0?"পণ্য পরিবর্তন":"পণ্য যোগ করুন").setView(l).setNegativeButton("বাতিল",null).setPositiveButton(editIndex>=0?"আপডেট":"যোগ করুন",null).create();
+
+--- RESOURCES ---
+### app/src/main/res/values/strings.xml
+<resources><string name="app_name">Memo Printer 80mm</string></resources>
+### app/src/main/res/values/styles.xml
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#F7F9FC</item>
+        <item name="android:navigationBarColor">#F7F9FC</item>
+        <item name="android:colorAccent">#2563EB</item>
+    </style>
+</resources>
