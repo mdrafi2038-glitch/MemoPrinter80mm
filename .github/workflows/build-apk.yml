@@ -45,6 +45,25 @@ jobs:
           echo "Project directory:"
           echo "$PROJECT_DIR"
 
+      - name: Add Sales Tracker and Summary Printer
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          cp "$GITHUB_WORKSPACE/SalesFeaturesActivity.java" app/src/main/java/com/memoprinter/eighty/SalesFeaturesActivity.java
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("app/src/main/java/com/memoprinter/eighty/MainActivity.java")
+          s=p.read_text(encoding="utf-8")
+          anchor='        c.addView(r3,new LinearLayout.LayoutParams(-1,dp(142)));\n        c.addView(gap(10));\n\n        LinearLayout info=card();'
+          insert='        c.addView(r3,new LinearLayout.LayoutParams(-1,dp(142)));\n        c.addView(gap(10));\n\n        LinearLayout r4=new LinearLayout(this); r4.setOrientation(LinearLayout.HORIZONTAL);\n        homeCard(r4,"📈","Sales Tracker","Product-wise sales",v->{Intent i=new Intent(this,SalesFeaturesActivity.class);i.putExtra("mode","sales");startActivity(i);});\n        homeCard(r4,"🧾","Summary Printer","Saved memos summary",v->{Intent i=new Intent(this,SalesFeaturesActivity.class);i.putExtra("mode","summary");startActivity(i);});\n        c.addView(r4,new LinearLayout.LayoutParams(-1,dp(142)));\n        c.addView(gap(10));\n\n        LinearLayout info=card();'
+          if anchor not in s: raise SystemExit("home anchor missing")
+          s=s.replace(anchor,insert,1)
+          p.write_text(s,encoding="utf-8")
+          m=Path("app/src/main/AndroidManifest.xml")
+          ms=m.read_text(encoding="utf-8")
+          act='        <activity android:name=".SalesFeaturesActivity" android:exported="false" />\n'
+          if "SalesFeaturesActivity" not in ms: ms=ms.replace("    </application>",act+"    </application>")
+          m.write_text(ms,encoding="utf-8")
+          PY
       - name: Export source for integration
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
