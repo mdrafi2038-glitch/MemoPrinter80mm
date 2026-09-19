@@ -1,6 +1,6 @@
 package com.memoprinter.eighty;
 
-import android.app.*;import android.bluetooth.*;import android.content.*;import android.content.pm.PackageManager;import android.graphics.*;import android.os.*;import android.view.*;import android.widget.*;import org.json.*;import java.io.*;import java.text.*;import java.util.*;
+import android.app.*;import android.bluetooth.*;import android.content.*;import android.content.pm.PackageManager;import android.graphics.*;import android.graphics.drawable.GradientDrawable;import android.os.*;import android.view.*;import android.widget.*;import org.json.*;import java.io.*;import java.text.*;import java.util.*;
 
 public class SalesFeaturesActivity extends Activity{
  static final int BLUE=Color.rgb(37,99,235),TEXT=Color.rgb(15,23,42),MUTED=Color.rgb(100,116,139),BG=Color.rgb(246,248,252),WHITE=Color.WHITE,RED=Color.rgb(239,68,68);
