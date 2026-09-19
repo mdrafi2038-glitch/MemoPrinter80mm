@@ -59,7 +59,7 @@ jobs:
           echo '' >> ../../SOURCE_INSPECT.txt
           echo '--- RESOURCES ---' >> ../../SOURCE_INSPECT.txt
           find app/src/main/res -type f \( -name '*.xml' -o -name '*.json' \) -print | sort | while read f; do echo "### $f" >> ../../SOURCE_INSPECT.txt; sed -n '1,300p' "$f" >> ../../SOURCE_INSPECT.txt; done
-          cd ../..
+          cd "$GITHUB_WORKSPACE"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add SOURCE_INSPECT.txt
