@@ -55,7 +55,7 @@ jobs:
           find app/src/main -name AndroidManifest.xml -print -exec sed -n '1,240p' {} \; >> ../SOURCE_INSPECT.txt
           echo '' >> ../SOURCE_INSPECT.txt
           echo '--- MAIN ACTIVITY FILES ---' >> ../SOURCE_INSPECT.txt
-          for f in $(find app/src/main/java -name 'MainActivity.java' -o -name 'MainActivity.kt'); do echo "### $f" >> ../SOURCE_INSPECT.txt; sed -n '1,500p' "$f" >> ../SOURCE_INSPECT.txt; done
+          for f in $(find app/src/main/java -name 'MainActivity.java' -o -name 'MainActivity.kt'); do echo "### $f" >> ../SOURCE_INSPECT.txt; sed -n '1,2000p' "$f" >> ../SOURCE_INSPECT.txt; done
           echo '' >> ../SOURCE_INSPECT.txt
           echo '--- RESOURCES ---' >> ../SOURCE_INSPECT.txt
           find app/src/main/res -type f \( -name '*.xml' -o -name '*.json' \) -print | sort | while read f; do echo "### $f" >> ../SOURCE_INSPECT.txt; sed -n '1,300p' "$f" >> ../SOURCE_INSPECT.txt; done
