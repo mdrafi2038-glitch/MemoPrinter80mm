@@ -63,6 +63,7 @@ jobs:
           sed -n '1501,2000p' app/src/main/java/com/memoprinter/eighty/MainActivity.java > SOURCE_MAIN_1501_2000.txt
           echo '--- RESOURCES ---' >> SOURCE_INSPECT.txt
           find app/src/main/res -type f \( -name '*.xml' -o -name '*.json' \) -print | sort | while read f; do echo "### $f" >> SOURCE_INSPECT.txt; sed -n '1,300p' "$f" >> SOURCE_INSPECT.txt; done
+          cp SOURCE_LINES.txt SOURCE_MAIN_*.txt "$GITHUB_WORKSPACE"/
           cd "$GITHUB_WORKSPACE"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
