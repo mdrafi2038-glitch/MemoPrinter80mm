@@ -448,6 +448,28 @@
         updateSelection[0].run();
     }
 
+        updateSelection[0].run();
+
+        // Date-wise total: sum the final total amount of every memo in this folder.
+        double dateTotalAmount=0;
+        for(Memo mm:visible) dateTotalAmount += mm.total;
+
+        LinearLayout totalCard=card();
+        totalCard.setPadding(dp(16),dp(18),dp(16),dp(18));
+        TextView totalLabel=tv("এই তারিখের মোট Order Amount",16,MUTED);
+        totalLabel.setGravity(Gravity.CENTER);
+        totalCard.addView(totalLabel,new LinearLayout.LayoutParams(-1,dp(30)));
+
+        TextView totalAmount=tv("৳"+bn(formatNumber(dateTotalAmount)),23,BLUE_DARK);
+        totalAmount.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        totalAmount.setGravity(Gravity.CENTER);
+        totalCard.addView(totalAmount,new LinearLayout.LayoutParams(-1,dp(42)));
+
+        LinearLayout.LayoutParams totalLp=new LinearLayout.LayoutParams(-1,dp(96));
+        totalLp.setMargins(0,dp(4),0,dp(20));
+        c.addView(totalCard,totalLp);
+    }
+
     void showSaved(Memo m){ImageView image=new ImageView(this);image.setImageBitmap(renderMemo(m));image.setAdjustViewBounds(true);image.setScaleType(ImageView.ScaleType.FIT_CENTER);ScrollView s=new ScrollView(this);s.setPadding(dp(8),dp(8),dp(8),dp(8));s.addView(image);new AlertDialog.Builder(this).setTitle("Memo "+memoLabel(m.no)).setView(s).setNegativeButton("Close",null).setPositiveButton("Print",(d,w)->printMemo(m)).show();}
 
     String memoDate(){ Calendar c=Calendar.getInstance(); c.add(Calendar.DAY_OF_YEAR,1); return new SimpleDateFormat("dd/MM/yyyy",Locale.getDefault()).format(c.getTime()); }
@@ -476,25 +498,3 @@
         if(s==null)return false;
         String z=s.trim();
         return z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*/\\s*[cC]$")
-            || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$");
-    }
-    Double findCartonPcs(String name){
-        if(name==null)return null;
-        String q=name.trim();
-        for(String k:cartonPcs.keySet()) if(k.equalsIgnoreCase(q)) return cartonPcs.get(k);
-        return null;
-    }
-    Double findCartonPcsAny(String raw,String converted){
-        Double v=findCartonPcs(raw); if(v!=null)return v;
-        return findCartonPcs(converted);
-    }
-    double quantityInPieces(String product,String qtyText){
-        double q=num(qtyText);
-        if(!isCartonQty(qtyText)) return q;
-        Double pcs=findCartonPcs(product);
-        return pcs==null ? -1 : q*pcs;
-    }
-    double quantityInPiecesAny(String raw,String converted,String qtyText){
-        double q=num(qtyText);
-        if(!isCartonQty(qtyText)) return q;
-        Double pcs=findCartonPcsAny(raw,converted);
