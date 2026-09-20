@@ -1,6 +1,3 @@
-            || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$");
-    }
-    Double findCartonPcs(String name){
         if(name==null)return null;
         String q=name.trim();
         for(String k:cartonPcs.keySet()) if(k.equalsIgnoreCase(q)) return cartonPcs.get(k);

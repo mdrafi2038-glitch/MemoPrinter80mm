@@ -446,9 +446,6 @@
         });
 
         updateSelection[0].run();
-    }
-
-        updateSelection[0].run();
 
         // Date-wise total: sum the final total amount of every memo in this folder.
         double dateTotalAmount=0;
@@ -498,3 +495,6 @@
         if(s==null)return false;
         String z=s.trim();
         return z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*/\\s*[cC]$")
+            || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$");
+    }
+    Double findCartonPcs(String name){
