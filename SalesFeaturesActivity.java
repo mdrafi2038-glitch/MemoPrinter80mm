@@ -22,11 +22,29 @@ public class SalesFeaturesActivity extends Activity{
  LinearLayout tc=card();TextView gt=tv("আজকের মোট quantity: "+bn(fmt(total))+" pcs",19,TEXT);gt.setTypeface(bold);tc.addView(gt);c.addView(tc);}
  void addProduct(){EditText n=input("Product name");new AlertDialog.Builder(this).setTitle("Add Product").setView(n).setNegativeButton("Cancel",null).setPositiveButton("Add",(d,w)->{String x=n.getText().toString().trim();if(x.isEmpty())return;for(String k:products.keySet())if(k.equalsIgnoreCase(x)){toast("এই product আগে থেকেই আছে");return;}products.put(x,0.0);save();sales();}).show();}
  void addQty(String n){EditText q=input("Quantity — 10 / ১০");new AlertDialog.Builder(this).setTitle("Add Quantity").setView(q).setNegativeButton("Cancel",null).setPositiveButton("Add",(d,w)->{double x=num(q.getText().toString());if(x<=0){toast("Quantity দিন");return;}today.put(n,(today.containsKey(n)?today.get(n):0)+x);save();sales();}).show();}
- LinkedHashMap<String,Double> summaryData(String date){LinkedHashMap<String,Double> m=new LinkedHashMap<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){JSONObject memo=a.getJSONObject(i);if(date!=null&&!date.equals(memo.optString("date")))continue;JSONArray q=memo.optJSONArray("items");if(q==null)continue;for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);String n=x.optString("name").trim();if(n.isEmpty())continue;String old=null;for(String k:m.keySet())if(k.equalsIgnoreCase(n)){old=k;break;}double v=summaryQtyInPieces(n,x.optString("qty"));if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);}}}catch(Exception ignored){}return m;}
+ LinkedHashMap<String,Double> summaryData(String date){LinkedHashMap<String,Double> m=new LinkedHashMap<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){JSONObject memo=a.getJSONObject(i);if(date!=null&&!date.equals(memo.optString("date")))continue;JSONArray q=memo.optJSONArray("items");if(q==null)continue;for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);String n=x.optString("name").trim();if(n.isEmpty())continue;String old=null;for(String k:m.keySet())if(k.equalsIgnoreCase(n)){old=k;break;}double v=summaryQtyInPieces(n,x.optString("price"),x.optString("qty"));if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);}}}catch(Exception ignored){}return m;}
  JSONArray mainHistory(){try{return new JSONArray(mainPrefs().getString("history","[]"));}catch(Exception e){return new JSONArray();}}
  android.content.SharedPreferences mainPrefs(){return getSharedPreferences("MainActivity",MODE_PRIVATE);}
- Double cartonPcsFor(String name){try{JSONObject o=new JSONObject(mainPrefs().getString("carton_pcs","{}"));if(name!=null){String q=name.trim();Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();if(k.equalsIgnoreCase(q))return o.optDouble(k,0);}}}catch(Exception ignored){}return null;}
- double summaryQtyInPieces(String name,String qty){if(qty==null)return 0;String z=qty.trim();boolean carton=z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*/\\s*[cC]$")||z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$");double q=num(qty);if(!carton)return q;Double pcs=cartonPcsFor(name);return pcs==null?0:q*pcs;}
+ Double cartonPcsFor(String name,String priceText){
+  try{
+   JSONObject o=new JSONObject(mainPrefs().getString("carton_pcs","{}"));
+   if(name!=null){String q=name.trim();Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();if(k.equalsIgnoreCase(q))return o.optDouble(k,0);}}
+   // Automatic input can save a converted product name (for example English -> Bangla),
+   // while the carton setting may have been saved under the original product name.
+   // If the names differ, use the product's saved default price as a safe fallback.
+   double target=num(priceText); if(target>0){
+    JSONObject pr=new JSONObject(mainPrefs().getString("prices","{}"));
+    Double match=null; boolean ambiguous=false;
+    Iterator<String>it=o.keys(); while(it.hasNext()){
+     String k=it.next(); double cp=o.optDouble(k,0); double pv=pr.optDouble(k,Double.NaN);
+     if(cp>0 && !Double.isNaN(pv) && Math.abs(pv-target)<0.0001){if(match==null)match=cp;else if(Math.abs(match-cp)>0.0001)ambiguous=true;}
+    }
+    if(match!=null && !ambiguous)return match;
+   }
+  }catch(Exception ignored){}
+  return null;
+ }
+ double summaryQtyInPieces(String name,String priceText,String qty){if(qty==null)return 0;String z=qty.trim();boolean carton=z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*/\\s*[cC]$")||z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$");double q=num(qty);if(!carton)return q;Double pcs=cartonPcsFor(name,priceText);return pcs==null?0:q*pcs;}
  ArrayList<String> historyDates(){ArrayList<String> d=new ArrayList<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){String x=a.getJSONObject(i).optString("date").trim();if(!x.isEmpty()&&!d.contains(x))d.add(x);}}catch(Exception ignored){}Collections.sort(d,(a,b)->dateCompare(b,a));return d;}
  int dateCompare(String a,String b){try{return new SimpleDateFormat("dd/MM/yyyy",Locale.US).parse(a).compareTo(new SimpleDateFormat("dd/MM/yyyy",Locale.US).parse(b));}catch(Exception e){return a.compareTo(b);}}
  int memoCount(String date){int n=0;try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++)if(date.equals(a.getJSONObject(i).optString("date")))n++;}catch(Exception ignored){}return n;}
