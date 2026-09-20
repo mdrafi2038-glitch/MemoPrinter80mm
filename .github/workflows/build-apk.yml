@@ -45,6 +45,12 @@ jobs:
           echo "Project directory:"
           echo "$PROJECT_DIR"
 
+      - name: Apply V31 Saved Memos update
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          python3 "$GITHUB_WORKSPACE/patch_v31.py"
+
+
       - name: Add Sales Tracker and Summary Printer
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
