@@ -1,3 +1,6 @@
+        if(editIndex<0 && items.size()>=9){ toast("সর্বোচ্চ ১০টি পণ্য যোগ করা যাবে (মোটের জন্য শেষ ঘর রাখা হয়েছে)"); return; }
+        final LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(4),dp(2),dp(4),dp(2));
+        final EditText n=input("পণ্যের নাম"); final EditText q=input("পরিমাণ — ২ / 2"); final EditText p=input("প্রতি পিস দাম — ২৫ / 25");
         q.setInputType(android.text.InputType.TYPE_CLASS_TEXT); p.setInputType(android.text.InputType.TYPE_CLASS_TEXT); l.addView(label("পণ্য নাম")); l.addView(n); l.addView(gap(8)); l.addView(label("পরিমাণ (pcs)")); l.addView(q); l.addView(gap(8)); l.addView(label("প্রতি পিস দাম")); l.addView(p); l.addView(gap(8));
         TextView calc=tv("Amount: ৳০",17,BLUE); calc.setTypeface(Typeface.DEFAULT,Typeface.BOLD); calc.setPadding(dp(5),dp(5),dp(5),dp(8)); l.addView(calc);
         if(editIndex>=0 && editIndex<items.size()){ Item x=items.get(editIndex); n.setText(x.name); q.setText(x.qty); p.setText(x.price); }
@@ -24,7 +27,7 @@
         if(totalView!=null)totalView.setText("মোট টাকা: ৳"+bn(formatNumber(sum))); if(countView!=null)countView.setText(bn(String.valueOf(items.size()))+" পণ্য"); updateLivePreview(); if(livePreview!=null)livePreview.post(()->updateLivePreview());
     }
 
-    Memo readMemo(){ Memo m=new Memo(); m.no=memoNo; m.date=displayMemoDate(); m.name=customer==null?"":customer.getText().toString().trim(); m.address=address==null?"":address.getText().toString().trim(); for(Item x:items)m.items.add(new Item(x.name,x.qty,x.price,x.amount)); m.subtotal=total(); m.discount=Math.min(Math.max(0,discountAmount),m.subtotal); m.total=m.subtotal-m.discount; return m; }
+    Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.no=nextMemoNoForDate(m.date); m.name=customer==null?"":customer.getText().toString().trim(); m.address=address==null?"":address.getText().toString().trim(); for(Item x:items)m.items.add(new Item(x.name,x.qty,x.price,x.amount)); m.subtotal=total(); m.discount=Math.min(Math.max(0,discountAmount),m.subtotal); m.total=m.subtotal-m.discount; return m; }
 
     void discountDialog(Button button){
         final EditText d=input("ডিসকাউন্টের টাকা — 100 / ১০০");
@@ -50,8 +53,8 @@
         AlertDialog dlg=new AlertDialog.Builder(this).setTitle("Print Preview • 80mm").setView(box).setNegativeButton("Close",null).setPositiveButton("🖨 Print",(d,w)->printMemo(m)).create(); dlg.show();
     }
     void saveAndMaybePrint(){ if(items.isEmpty()){toast("কমপক্ষে ১টি পণ্য যোগ করুন");return;} Memo m=readMemo(); persistMemo(m); if(autoPrint!=null&&autoPrint.isChecked())printMemo(m);else toast("মেমো "+memoLabel(m.no)+" সেভ হয়েছে ✓"); }
-    void persistMemo(Memo m){ boolean isNew=(m.no==memoNo); saveMemo(m); if(isNew){getPreferences(0).edit().putInt("memo",memoNo+1).apply();memoNo++;} }
-    void saveMemo(Memo m){ history.removeIf(x->x.no==m.no); history.add(0,m); while(history.size()>100)history.remove(history.size()-1); saveHistory(); }
+    void persistMemo(Memo m){ saveMemo(m); memoNo=nextMemoNoForDate(m.date); getPreferences(0).edit().putInt("memo",memoNo).apply(); }
+    void saveMemo(Memo m){ history.removeIf(x->x.no==m.no && x.date.equals(m.date)); history.add(0,m); while(history.size()>100)history.remove(history.size()-1); saveHistory(); }
 
     Bitmap renderMemo(Memo m){
         Bitmap src=BitmapFactory.decodeResource(getResources(), R.drawable.memo_template);
@@ -170,13 +173,54 @@
 
     void savedMemos(){
         openScreen("saved");
-        shell("Saved Memos","Local history • mark any memos and print together",true);
+        shell("Saved Memos","Date-wise folders • local history",true);
+        ScrollView sv=scroll(); LinearLayout c=content(sv);
+        if(history.isEmpty()){ c.addView(tv("কোনো saved memo নেই",15,MUTED)); return; }
+        ArrayList<String> dates=new ArrayList<>();
+        for(Memo m:history) if(m.date!=null && !dates.contains(m.date)) dates.add(m.date);
+        Collections.sort(dates,(a,b)->compareMemoDates(b,a));
+        for(String date:dates){
+            int count=countMemosForDate(date);
+            LinearLayout f=card(); f.setOrientation(LinearLayout.HORIZONTAL); f.setGravity(Gravity.CENTER_VERTICAL);
+            TextView i=tv("📁",30,TEXT); i.setGravity(Gravity.CENTER); f.addView(i,new LinearLayout.LayoutParams(dp(52),dp(64)));
+            LinearLayout info=new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL);
+            TextView t=tv(date,17,TEXT); t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+            info.addView(t,new LinearLayout.LayoutParams(-1,dp(32)));
+            info.addView(tv(bn(String.valueOf(count))+"টি Memo",13,MUTED),new LinearLayout.LayoutParams(-1,dp(25)));
+            f.addView(info,new LinearLayout.LayoutParams(0,dp(70),1));
+            TextView a=tv("›",30,BLUE); a.setGravity(Gravity.CENTER); f.addView(a,new LinearLayout.LayoutParams(dp(40),dp(70)));
+            f.setOnClickListener(v->{ savedFolderDate=date; savedMemosList(date); });
+            c.addView(f,new LinearLayout.LayoutParams(-1,dp(90))); c.addView(gap(10));
+        }
+    }
+
+    int countMemosForDate(String date){ int n=0; for(Memo m:history) if(date.equals(m.date)) n++; return n; }
+    int nextMemoNoForDate(String date){ int max=0; for(Memo m:history) if(date!=null && date.equals(m.date)) max=Math.max(max,m.no); return max+1; }
+    void renumberDate(String date){
+        ArrayList<Memo> list=new ArrayList<>(); for(Memo m:history) if(date.equals(m.date)) list.add(m);
+        Collections.sort(list,(a,b)->Integer.compare(a.no,b.no));
+        for(int i=0;i<list.size();i++) list.get(i).no=i+1;
+        memoNo=nextMemoNoForDate(date);
+        getPreferences(0).edit().putInt("memo",memoNo).apply();
+    }
+    int compareMemoDates(String a,String b){
+        try{
+            Date da=new SimpleDateFormat("dd/MM/yyyy",Locale.US).parse(a);
+            Date db=new SimpleDateFormat("dd/MM/yyyy",Locale.US).parse(b);
+            return da.compareTo(db);
+        }catch(Exception e){ return a.compareTo(b); }
+    }
+
+    void savedMemosList(String date){
+        openScreen("savedList");
+        shell(date,"Saved Memos • "+bn(String.valueOf(countMemosForDate(date)))+"টি",true);
         ScrollView sv=scroll();
         LinearLayout c=content(sv);
         if(history.isEmpty()){
             c.addView(tv("কোনো saved memo নেই",15,MUTED));
             return;
         }
+        ArrayList<Memo> visible=new ArrayList<>(); for(Memo z:history) if(date.equals(z.date)) visible.add(z); Collections.sort(visible,(a,b)->Integer.compare(a.no,b.no));
 
         // Bulk selection controls: the user can mark only the memos they want.
         LinearLayout tools=new LinearLayout(this);
@@ -210,13 +254,13 @@
         final Runnable[] updateSelection=new Runnable[1];
         updateSelection[0]=()->{
             selected.setText(bn(String.valueOf(marked.size()))+"টি selected");
-            boolean checked=!history.isEmpty() && marked.size()==history.size();
+            boolean checked=!visible.isEmpty() && marked.size()==visible.size();
             if(all.isChecked()!=checked){
                 all.setOnCheckedChangeListener(null);
                 all.setChecked(checked);
                 all.setOnCheckedChangeListener((button, value)->{
                     marked.clear();
-                    for(int i=0;i<history.size();i++){
+                    for(int i=0;i<visible.size();i++){
                         CheckBox cb=boxes.get(i);
                         cb.setOnCheckedChangeListener(null);
                         cb.setChecked(value);
@@ -226,14 +270,14 @@
                             else marked.remove(mm);
                             updateSelection[0].run();
                         });
-                        if(value) marked.add(history.get(i));
+                        if(value) marked.add(visible.get(i));
                     }
                     updateSelection[0].run();
                 });
             }
         };
 
-        for(Memo m:history){
+        for(Memo m:visible){
             LinearLayout r=card();
             LinearLayout top=new LinearLayout(this);
             top.setGravity(Gravity.CENTER_VERTICAL);
@@ -285,7 +329,7 @@
 
         all.setOnCheckedChangeListener((button,value)->{
             marked.clear();
-            for(int i=0;i<history.size();i++){
+            for(int i=0;i<visible.size();i++){
                 CheckBox cb=boxes.get(i);
                 cb.setOnCheckedChangeListener(null);
                 cb.setChecked(value);
@@ -295,7 +339,7 @@
                     else marked.remove(mm);
                     updateSelection[0].run();
                 });
-                if(value) marked.add(history.get(i));
+                if(value) marked.add(visible.get(i));
             }
             updateSelection[0].run();
         });
@@ -321,6 +365,7 @@
                 .setNegativeButton("Cancel",null)
                 .setPositiveButton("Delete",(d,w)->{
                     history.removeAll(marked);
+                    renumberDate(date);
                     marked.clear();
                     saveHistory();
                     toast("Marked memo delete হয়েছে ✓");
@@ -343,6 +388,7 @@
     void loadPrices(){String raw=getPreferences(0).getString("prices","{}");try{JSONObject o=new JSONObject(raw);Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();prices.put(k,o.getDouble(k));}}catch(Exception ignored){}}
     void savePrices(){try{JSONObject o=new JSONObject();for(String k:prices.keySet())o.put(k,prices.get(k));getPreferences(0).edit().putString("prices",o.toString()).apply();}catch(Exception ignored){}}
     void loadPrinter(){printerName=getPreferences(0).getString("printerName","");printerMac=getPreferences(0).getString("printerMac","");}
-    void loadHistory(){String raw=getPreferences(0).getString("history","[]");try{JSONArray a=new JSONArray(raw);for(int i=0;i<a.length();i++){JSONObject o=a.getJSONObject(i);Memo m=new Memo();m.no=o.optInt("no");m.date=o.optString("date");m.name=o.optString("name");m.address=o.optString("address");m.subtotal=o.optDouble("subtotal",o.optDouble("total"));m.discount=o.optDouble("discount",0);m.total=o.optDouble("total",m.subtotal-m.discount);JSONArray q=o.optJSONArray("items");if(q!=null)for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);m.items.add(new Item(x.optString("name"),x.optString("qty"),x.optString("price"),x.optString("amount")));}history.add(m);}}catch(Exception ignored){}}
+    void loadHistory(){String raw=getPreferences(0).getString("history","[]");try{JSONArray a=new JSONArray(raw);for(int i=0;i<a.length();i++){JSONObject o=a.getJSONObject(i);Memo m=new Memo();m.no=o.optInt("no");m.date=o.optString("date");m.name=o.optString("name");m.address=o.optString("address");m.subtotal=o.optDouble("subtotal",o.optDouble("total"));m.discount=o.optDouble("discount",0);m.total=o.optDouble("total",m.subtotal-m.discount);JSONArray q=o.optJSONArray("items");if(q!=null)for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);m.items.add(new Item(x.optString("name"),x.optString("qty"),x.optString("price"),x.optString("amount")));}history.add(m);} normalizeHistorySerials(); }catch(Exception ignored){}}
+    void normalizeHistorySerials(){ ArrayList<String> dates=new ArrayList<>(); for(Memo m:history) if(m.date!=null&&!dates.contains(m.date)) dates.add(m.date); for(String d:dates) renumberDate(d); saveHistory(); }
     void saveHistory(){try{JSONArray a=new JSONArray();for(Memo m:history){JSONObject o=new JSONObject();o.put("no",m.no);o.put("date",m.date);o.put("name",m.name);o.put("address",m.address);o.put("subtotal",m.subtotal);o.put("discount",m.discount);o.put("total",m.total);JSONArray q=new JSONArray();for(Item x:m.items){JSONObject z=new JSONObject();z.put("name",x.name);z.put("qty",x.qty);z.put("price",x.price);z.put("amount",x.amount);q.put(z);}o.put("items",q);a.put(o);}getPreferences(0).edit().putString("history",a.toString()).apply();}catch(Exception ignored){}}
 }
