@@ -21,6 +21,7 @@ new_num='''    double num(String s){
             int slash=z.indexOf('/');
             z=z.substring(0,slash).trim();
         }
+        if(z.matches("^\\\\d+(?:\\\\.\\\\d+)?\\\\s*কা$")){ z=z.substring(0,z.length()-2).trim(); }
         try{return Double.parseDouble(z);}catch(Exception e){return 0;}
     }'''
 if(!s.includes(old_num)) throw new Error("num anchor missing");
@@ -37,7 +38,7 @@ if(!s.includes(oldItem)) throw new Error("item anchor missing");
 s=s.replace(oldItem,newItem,1);
 
 const oldFind='    Double findPrice(String name){ if(name==null)return null;';
-const helper='    boolean isCartonQty(String s){ if(s==null)return false; String z=s.trim(); return z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*/\\\\s*[cC]$") || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*কা$" ) || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$"); }\n';
+const helper='    boolean isCartonQty(String s){ if(s==null)return false; String z=s.trim(); return z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*/\\\\s*[cC]$") || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*কা$"); }\\n';
 if(!s.includes(oldFind)) throw new Error("findPrice anchor missing");
 s=s.replace(oldFind,helper+oldFind,1);
 
