@@ -1,0 +1,34 @@
+            || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$");
+    }
+    Double findCartonPcs(String name){
+        if(name==null)return null;
+        String q=name.trim();
+        for(String k:cartonPcs.keySet()) if(k.equalsIgnoreCase(q)) return cartonPcs.get(k);
+        return null;
+    }
+    Double findCartonPcsAny(String raw,String converted){
+        Double v=findCartonPcs(raw); if(v!=null)return v;
+        return findCartonPcs(converted);
+    }
+    double quantityInPieces(String product,String qtyText){
+        double q=num(qtyText);
+        if(!isCartonQty(qtyText)) return q;
+        Double pcs=findCartonPcs(product);
+        return pcs==null ? -1 : q*pcs;
+    }
+    double quantityInPiecesAny(String raw,String converted,String qtyText){
+        double q=num(qtyText);
+        if(!isCartonQty(qtyText)) return q;
+        Double pcs=findCartonPcsAny(raw,converted);
+        return pcs==null ? -1 : q*pcs;
+    }
+
+    void loadPrices(){String raw=getPreferences(0).getString("prices","{}");try{JSONObject o=new JSONObject(raw);Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();prices.put(k,o.getDouble(k));}}catch(Exception ignored){}}
+    void savePrices(){try{JSONObject o=new JSONObject();for(String k:prices.keySet())o.put(k,prices.get(k));getPreferences(0).edit().putString("prices",o.toString()).apply();}catch(Exception ignored){}}
+    void loadCartonPcs(){String raw=getPreferences(0).getString("carton_pcs","{}");try{JSONObject o=new JSONObject(raw);Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();double v=o.optDouble(k,0);if(v>0)cartonPcs.put(k,v);}}catch(Exception ignored){}}
+    void saveCartonPcs(){try{JSONObject o=new JSONObject();for(String k:cartonPcs.keySet())o.put(k,cartonPcs.get(k));getPreferences(0).edit().putString("carton_pcs",o.toString()).apply();}catch(Exception ignored){}}
+    void loadPrinter(){printerName=getPreferences(0).getString("printerName","");printerMac=getPreferences(0).getString("printerMac","");}
+    void loadHistory(){String raw=getPreferences(0).getString("history","[]");try{JSONArray a=new JSONArray(raw);for(int i=0;i<a.length();i++){JSONObject o=a.getJSONObject(i);Memo m=new Memo();m.no=o.optInt("no");m.date=o.optString("date");m.name=o.optString("name");m.address=o.optString("address");m.subtotal=o.optDouble("subtotal",o.optDouble("total"));m.discount=o.optDouble("discount",0);m.total=o.optDouble("total",m.subtotal-m.discount);JSONArray q=o.optJSONArray("items");if(q!=null)for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);m.items.add(new Item(x.optString("name"),x.optString("qty"),x.optString("price"),x.optString("amount")));}history.add(m);} normalizeHistorySerials(); }catch(Exception ignored){}}
+    void normalizeHistorySerials(){ ArrayList<String> dates=new ArrayList<>(); for(Memo m:history) if(m.date!=null&&!dates.contains(m.date)) dates.add(m.date); for(String d:dates) renumberDate(d); saveHistory(); }
+    void saveHistory(){try{JSONArray a=new JSONArray();for(Memo m:history){JSONObject o=new JSONObject();o.put("no",m.no);o.put("date",m.date);o.put("name",m.name);o.put("address",m.address);o.put("subtotal",m.subtotal);o.put("discount",m.discount);o.put("total",m.total);JSONArray q=new JSONArray();for(Item x:m.items){JSONObject z=new JSONObject();z.put("name",x.name);z.put("qty",x.qty);z.put("price",x.price);z.put("amount",x.amount);q.put(z);}o.put("items",q);a.put(o);}getPreferences(0).edit().putString("history",a.toString()).apply();}catch(Exception ignored){}}
+}
