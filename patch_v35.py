@@ -47,13 +47,13 @@ replace_once(
 
 replace_once(
     'Item item=new Item(name,bn(formatNumber(qty)),bn(formatNumber(price)),bn(formatNumber(qty*price)));',
-    'String qtyRaw=q.getText().toString().trim(); double pieceQty=quantityInPieces(name,qtyRaw); if(isCartonQty(qtyRaw)&&pieceQty<0){q.setError("Settings-এ এই product-এর ১ কার্টুনে কত pcs সেট করুন");return;} String qtyDisplay=isCartonQty(qtyRaw)?qtyRaw:bn(formatNumber(qty)); Item item=new Item(name,qtyDisplay,bn(formatNumber(price)),bn(formatNumber(pieceQty)));',
+    'String qtyRaw=q.getText().toString().trim(); double calcQty=num(qtyRaw); String qtyDisplay=isCartonQty(qtyRaw)?qtyRaw:bn(formatNumber(qty)); Item item=new Item(name,qtyDisplay,bn(formatNumber(price)),bn(formatNumber(calcQty*price)));',
     'manual item'
 )
 
 replace_once(
     'out.items.add(new Item(bnName,bn(formatNumber(qty)),bn(formatNumber(price)),bn(formatNumber(qty*price))));',
-    'double pieceQty=quantityInPiecesAny(rawName,bnName,qtyText); if(isCartonQty(qtyText)&&pieceQty<0){out.error="Settings-এ "+rawName+" এর ১ কার্টুনে কত pcs সেট করুন"; return out;} String qtyDisplay=isCartonQty(qtyText)?qtyText:bn(formatNumber(qty)); out.items.add(new Item(bnName,qtyDisplay,bn(formatNumber(price)),bn(formatNumber(pieceQty))));',
+    'double calcQty=num(qtyText); String qtyDisplay=isCartonQty(qtyText)?qtyText:bn(formatNumber(qty)); out.items.add(new Item(bnName,qtyDisplay,bn(formatNumber(price)),bn(formatNumber(calcQty*price))));',
     'automatic item'
 )
 
@@ -71,10 +71,7 @@ helpers = '''    boolean isCartonQty(String s){
     }
     Double findCartonPcsAny(String raw,String converted){
         Double v=findCartonPcs(raw); if(v!=null)return v;
-        v=findCartonPcs(converted); if(v!=null)return v;
-        String nr=normalizeLatin(raw), nc=normalizeBangla(converted);
-        for(String k:cartonPcs.keySet()) if(normalizeLatin(k).equals(nr)||normalizeBangla(k).equals(nc)) return cartonPcs.get(k);
-        return null;
+        return findCartonPcs(converted);
     }
     double quantityInPieces(String product,String qtyText){
         double q=num(qtyText);
@@ -103,10 +100,9 @@ new_settings = '''void settings(){ openScreen("settings"); shell("Settings","প
 replace_once(old_settings,new_settings,'settings')
 
 # Summary uses pieces, not carton count.
-replace_once(
-    'double v=num(x.optString("qty"));if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);',
-    'double v=quantityInPieces(n,x.optString("qty"));if(v<0)v=0;if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);',
-    'summary'
-)
+old_summary='double v=num(x.optString("qty"));if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);'
+new_summary='double v=quantityInPieces(n,x.optString("qty"));if(v<0)v=0;if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);'
+if old_summary in s:
+    s=s.replace(old_summary,new_summary,1)
 
 p.write_text(s,encoding="utf-8")
