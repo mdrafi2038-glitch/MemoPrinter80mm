@@ -87,8 +87,6 @@ saved = r'''    void savedMemos(){
         }
     }
 
-    String savedFolderDate="";
-
     int countMemosForDate(String date){
         int n=0;
         for(Memo m:history) if(date!=null && date.equals(m.date)) n++;
