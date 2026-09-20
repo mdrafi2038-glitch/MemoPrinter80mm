@@ -50,6 +50,7 @@ jobs:
         run: |
           python3 "$GITHUB_WORKSPACE/patch_v31.py"
           python3 "$GITHUB_WORKSPACE/patch_v32.py"
+          python3 "$GITHUB_WORKSPACE/patch_v33.py"
 
 
       - name: Add Sales Tracker and Summary Printer
