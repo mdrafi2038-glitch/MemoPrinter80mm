@@ -3,10 +3,7 @@ p=Path("app/src/main/java/com/memoprinter/eighty/MainActivity.java")
 s=p.read_text(encoding="utf-8")
 
 # Add a date-level total amount at the very bottom of each Saved Memos date folder.
-anchor='''        updateSelection[0].run();
-    }
-
-    void showSaved(Memo m){'''
+anchor='''    void showSaved(Memo m){'''
 insert='''        updateSelection[0].run();
 
         // Date-wise total: sum the final total amount of every memo in this folder.
@@ -31,6 +28,6 @@ insert='''        updateSelection[0].run();
 
     void showSaved(Memo m){'''
 if anchor not in s:
-    raise SystemExit("Saved Memos total anchor missing")
+    raise SystemExit("Saved Memos showSaved anchor missing")
 s=s.replace(anchor,insert,1)
 p.write_text(s,encoding="utf-8")
