@@ -28,12 +28,16 @@ public class SalesFeaturesActivity extends Activity{
  Double cartonPcsFor(String name,String priceText){
   try{
    JSONObject o=new JSONObject(mainPrefs().getString("carton_pcs","{}"));
-   if(name!=null){String q=name.trim();Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();if(k.equalsIgnoreCase(q))return o.optDouble(k,0);}}
-   // Automatic input can save a converted product name (for example English -> Bangla),
-   // while the carton setting may have been saved under the original product name.
-   // If the names differ, use the product's saved default price as a safe fallback.
-   double target=num(priceText); if(target>0){
-    JSONObject pr=new JSONObject(mainPrefs().getString("prices","{}"));
+   String q=name==null?"":name.trim();
+   // 1) Exact product-name match.
+   if(!q.isEmpty()){
+    Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();if(k.trim().equalsIgnoreCase(q))return o.optDouble(k,0);}
+   }
+   // 2) Match product name against the saved default-price keys. This handles
+   // English/Bangla display-name changes when the underlying default price is the same.
+   double target=num(priceText);
+   JSONObject pr=new JSONObject(mainPrefs().getString("prices","{}"));
+   if(target>0){
     Double match=null; boolean ambiguous=false;
     Iterator<String>it=o.keys(); while(it.hasNext()){
      String k=it.next(); double cp=o.optDouble(k,0); double pv=pr.optDouble(k,Double.NaN);
@@ -41,6 +45,11 @@ public class SalesFeaturesActivity extends Activity{
     }
     if(match!=null && !ambiguous)return match;
    }
+   // 3) If there is only one carton setting saved, use it. This is useful for
+   // automatic English->Bangla product-name conversion and avoids losing 1কা.
+   Iterator<String>it=o.keys(); String onlyKey=null; double onlyPcs=0; int count=0;
+   while(it.hasNext()){String k=it.next();double cp=o.optDouble(k,0);if(cp>0){count++;onlyKey=k;onlyPcs=cp;}}
+   if(count==1)return onlyPcs;
   }catch(Exception ignored){}
   return null;
  }
