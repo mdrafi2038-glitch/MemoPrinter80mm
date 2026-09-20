@@ -24,7 +24,7 @@ public class SalesFeaturesActivity extends Activity{
  void addQty(String n){EditText q=input("Quantity — 10 / ১০");new AlertDialog.Builder(this).setTitle("Add Quantity").setView(q).setNegativeButton("Cancel",null).setPositiveButton("Add",(d,w)->{double x=num(q.getText().toString());if(x<=0){toast("Quantity দিন");return;}today.put(n,(today.containsKey(n)?today.get(n):0)+x);save();sales();}).show();}
  LinkedHashMap<String,Double> summaryData(String date){LinkedHashMap<String,Double> m=new LinkedHashMap<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){JSONObject memo=a.getJSONObject(i);if(date!=null&&!date.equals(memo.optString("date")))continue;JSONArray q=memo.optJSONArray("items");if(q==null)continue;for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);String n=x.optString("name").trim();if(n.isEmpty())continue;String old=null;for(String k:m.keySet())if(k.equalsIgnoreCase(n)){old=k;break;}double v=summaryQtyInPieces(n,x.optString("price"),x.optString("qty"));if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);}}}catch(Exception ignored){}return m;}
  JSONArray mainHistory(){try{return new JSONArray(mainPrefs().getString("history","[]"));}catch(Exception e){return new JSONArray();}}
- android.content.SharedPreferences mainPrefs(){return getSharedPreferences("MainActivity_preferences",MODE_PRIVATE);}
+ android.content.SharedPreferences mainPrefs(){return getSharedPreferences("MainActivity",MODE_PRIVATE);}
  Double cartonPcsFor(String name,String priceText){
   try{
    JSONObject o=new JSONObject(mainPrefs().getString("carton_pcs","{}"));
