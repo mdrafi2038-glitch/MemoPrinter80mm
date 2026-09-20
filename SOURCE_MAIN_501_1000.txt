@@ -1,3 +1,4 @@
+
     void addProductDialog(final int editIndex){
         if(editIndex<0 && items.size()>=9){ toast("সর্বোচ্চ ১০টি পণ্য যোগ করা যাবে (মোটের জন্য শেষ ঘর রাখা হয়েছে)"); return; }
         final LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(4),dp(2),dp(4),dp(2));
@@ -28,7 +29,7 @@
         if(totalView!=null)totalView.setText("মোট টাকা: ৳"+bn(formatNumber(sum))); if(countView!=null)countView.setText(bn(String.valueOf(items.size()))+" পণ্য"); updateLivePreview(); if(livePreview!=null)livePreview.post(()->updateLivePreview());
     }
 
-    Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.no=nextMemoNoForDate(m.date); m.name=customer==null?"":customer.getText().toString().trim(); m.address=address==null?"":address.getText().toString().trim(); for(Item x:items)m.items.add(new Item(x.name,x.qty,x.price,x.amount)); m.subtotal=total(); m.discount=Math.min(Math.max(0,discountAmount),m.subtotal); m.total=m.subtotal-m.discount; return m; }
+    Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.no=(editingMemoNo>0 && m.date.equals(editingMemoDate))?editingMemoNo:nextMemoNoForDate(m.date); m.name=customer==null?"":customer.getText().toString().trim(); m.address=address==null?"":address.getText().toString().trim(); for(Item x:items)m.items.add(new Item(x.name,x.qty,x.price,x.amount)); m.subtotal=total(); m.discount=Math.min(Math.max(0,discountAmount),m.subtotal); m.total=m.subtotal-m.discount; return m; }
 
     void discountDialog(Button button){
         final EditText d=input("ডিসকাউন্টের টাকা — 100 / ১০০");
@@ -54,7 +55,7 @@
         AlertDialog dlg=new AlertDialog.Builder(this).setTitle("Print Preview • 80mm").setView(box).setNegativeButton("Close",null).setPositiveButton("🖨 Print",(d,w)->printMemo(m)).create(); dlg.show();
     }
     void saveAndMaybePrint(){ if(items.isEmpty()){toast("কমপক্ষে ১টি পণ্য যোগ করুন");return;} Memo m=readMemo(); persistMemo(m); if(autoPrint!=null&&autoPrint.isChecked())printMemo(m);else toast("মেমো "+memoLabel(m.no)+" সেভ হয়েছে ✓"); }
-    void persistMemo(Memo m){ saveMemo(m); memoNo=nextMemoNoForDate(m.date); getPreferences(0).edit().putInt("memo",memoNo).apply(); }
+    void persistMemo(Memo m){ saveMemo(m); memoNo=nextMemoNoForDate(m.date); getPreferences(0).edit().putInt("memo",memoNo).apply(); editingMemoNo=-1; editingMemoDate=""; }
     void saveMemo(Memo m){ history.removeIf(x->x.no==m.no && x.date.equals(m.date)); history.add(0,m); while(history.size()>100)history.remove(history.size()-1); saveHistory(); }
 
     Bitmap renderMemo(Memo m){
@@ -384,15 +385,18 @@
             r.addView(gap(7));
 
             LinearLayout a=new LinearLayout(this);
+            Button update=lightAction("✎  Update Order");
+            update.setOnClickListener(v->editSavedMemo(m));
             Button view=lightAction("View");
             view.setOnClickListener(v->showSaved(m));
             Button print=action("Print");
             print.setOnClickListener(v->printMemo(m));
 
-            a.addView(view,new LinearLayout.LayoutParams(0,50,1));
-            LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(0,50,1);
-            pp.setMargins(8,0,0,0);
-            a.addView(print,pp);
+            a.addView(update,new LinearLayout.LayoutParams(0,50,1));
+            LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(0,50,1);
+            vp.setMargins(6,0,6,0);
+            a.addView(view,vp);
+            a.addView(print,new LinearLayout.LayoutParams(0,50,1));
             r.addView(a);
 
             c.addView(r);
@@ -446,6 +450,30 @@
         });
 
         updateSelection[0].run();
+    }
+
+    void editSavedMemo(Memo m){
+        editingMemoNo=m.no;
+        editingMemoDate=m.date;
+        manualDate=m.date;
+        items.clear();
+        for(Item x:m.items) items.add(new Item(x.name,x.qty,x.price,x.amount));
+        discountAmount=m.discount;
+
+        newMemo();
+        editingMemoNo=m.no;
+        editingMemoDate=m.date;
+        manualDate=m.date;
+        if(dateView!=null) dateView.setText(m.date);
+        if(customer!=null) customer.setText(m.name);
+        if(address!=null) address.setText(m.address);
+        items.clear();
+        for(Item x:m.items) items.add(new Item(x.name,x.qty,x.price,x.amount));
+        discountAmount=m.discount;
+        memoNo=m.no;
+        refreshProducts();
+        updateLivePreview();
+        toast("Order update mode চালু হয়েছে — পরিবর্তন করে Save Memo দিন");
     }
 
     void showSaved(Memo m){ImageView image=new ImageView(this);image.setImageBitmap(renderMemo(m));image.setAdjustViewBounds(true);image.setScaleType(ImageView.ScaleType.FIT_CENTER);ScrollView s=new ScrollView(this);s.setPadding(dp(8),dp(8),dp(8),dp(8));s.addView(image);new AlertDialog.Builder(this).setTitle("Memo "+memoLabel(m.no)).setView(s).setNegativeButton("Close",null).setPositiveButton("Print",(d,w)->printMemo(m)).show();}
