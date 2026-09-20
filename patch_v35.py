@@ -37,7 +37,7 @@ if(!s.includes(oldItem)) throw new Error("item anchor missing");
 s=s.replace(oldItem,newItem,1);
 
 const oldFind='    Double findPrice(String name){ if(name==null)return null;';
-const helper='    boolean isCartonQty(String s){ if(s==null)return false; String z=s.trim(); return z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*/\\\\s*[cC]$"); }\n';
+const helper='    boolean isCartonQty(String s){ if(s==null)return false; String z=s.trim(); return z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*/\\\\s*[cC]$") || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*কা$"); }\n';
 if(!s.includes(oldFind)) throw new Error("findPrice anchor missing");
 s=s.replace(oldFind,helper+oldFind,1);
 
