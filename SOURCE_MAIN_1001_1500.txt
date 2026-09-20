@@ -1,25 +1,3 @@
-            || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$");
-    }
-    Double findCartonPcs(String name){
-        if(name==null)return null;
-        String q=name.trim();
-        for(String k:cartonPcs.keySet()) if(k.equalsIgnoreCase(q)) return cartonPcs.get(k);
-        return null;
-    }
-    Double findCartonPcsAny(String raw,String converted){
-        Double v=findCartonPcs(raw); if(v!=null)return v;
-        return findCartonPcs(converted);
-    }
-    double quantityInPieces(String product,String qtyText){
-        double q=num(qtyText);
-        if(!isCartonQty(qtyText)) return q;
-        Double pcs=findCartonPcs(product);
-        return pcs==null ? -1 : q*pcs;
-    }
-    double quantityInPiecesAny(String raw,String converted,String qtyText){
-        double q=num(qtyText);
-        if(!isCartonQty(qtyText)) return q;
-        Double pcs=findCartonPcsAny(raw,converted);
         return pcs==null ? -1 : q*pcs;
     }
 
