@@ -28,7 +28,7 @@ if(!s.includes(old_num)) throw new Error("num anchor missing");
 s=s.replace(old_num,new_num,1);
 
 const oldHint='final EditText n=input("পণ্যের নাম"); final EditText q=input("পরিমাণ — ২ / 2"); final EditText p=input("প্রতি পিস দাম — ২৫ / 25");';
-const newHint='final EditText n=input("পণ্যের নাম"); final EditText q=input("পরিমাণ — ২ / 2 / 1/c"); final EditText p=input("প্রতি পিস দাম — ২৫ / 25");';
+const newHint='final EditText n=input("পণ্যের নাম"); final EditText q=input("পরিমাণ — ২ / 2 / ১কা / 1/c"); final EditText p=input("প্রতি পিস দাম — ২৫ / 25");';
 if(!s.includes(oldHint)) throw new Error("quantity hint anchor missing");
 s=s.replace(oldHint,newHint,1);
 
