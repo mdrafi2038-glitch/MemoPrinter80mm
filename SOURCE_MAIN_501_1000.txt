@@ -484,7 +484,7 @@
             else b.append(ch);
         }
         String z=b.toString().trim();
-        if(z.matches("^\\d+(?:\\.\\d+)?\\s*/\\s*[cC]$")) z=z.substring(0,z.indexOf('/')).trim();
+        if(z.matches("^[0-9]+(?:[.][0-9]+)?\\s*/\\s*[cC]$")) z=z.substring(0,z.indexOf('/')).trim();
         else if(z.matches("^\\d+(?:\\.\\d+)?\\s*কা$")) z=z.substring(0,z.length()-2).trim();
         try{return Double.parseDouble(z);}catch(Exception e){return 0;}
     }
