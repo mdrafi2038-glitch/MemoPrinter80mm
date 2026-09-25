@@ -1,3 +1,12 @@
+            {"b","ব"},{"c","ক"},{"d","দ"},{"f","ফ"},{"g","গ"},{"h","হ"},{"j","জ"},{"k","ক"},{"l","ল"},{"m","ম"},{"n","ন"},{"p","প"},{"q","ক"},{"r","র"},{"s","স"},{"t","ত"},{"v","ভ"},{"w","ও"},{"x","ক্স"},{"y","য়"},{"z","জ"}
+        };
+        for(String[] x:con)CONSONANTS.put(x[0],x[1]);
+        String[][] vo={
+            {"a","া"},{"e","ে"},{"i","ি"},{"o","ো"},{"u","ু"}
+        };
+        for(String[] x:vo)VOWELS.put(x[0],x[1]);
+    }
+
     void addProductDialog(final int editIndex){
         if(editIndex<0 && items.size()>=9){ toast("সর্বোচ্চ ১০টি পণ্য যোগ করা যাবে (মোটের জন্য শেষ ঘর রাখা হয়েছে)"); return; }
         final LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(4),dp(2),dp(4),dp(2));
@@ -28,7 +37,7 @@
         if(totalView!=null)totalView.setText("মোট টাকা: ৳"+bn(formatNumber(sum))); if(countView!=null)countView.setText(bn(String.valueOf(items.size()))+" পণ্য"); updateLivePreview(); if(livePreview!=null)livePreview.post(()->updateLivePreview());
     }
 
-    Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.no=nextMemoNoForDate(m.date); m.name=customer==null?"":customer.getText().toString().trim(); m.address=address==null?"":address.getText().toString().trim(); for(Item x:items)m.items.add(new Item(x.name,x.qty,x.price,x.amount)); m.subtotal=total(); m.discount=Math.min(Math.max(0,discountAmount),m.subtotal); m.total=m.subtotal-m.discount; return m; }
+    Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.time=displayMemoTime(); m.no=editingMemoNo>0?editingMemoNo:nextMemoNoForDate(m.date); m.name=customer==null?"":customer.getText().toString().trim(); m.address=address==null?"":address.getText().toString().trim(); for(Item x:items)m.items.add(new Item(x.name,x.qty,x.price,x.amount)); m.subtotal=total(); m.discount=Math.min(Math.max(0,discountAmount),m.subtotal); m.total=m.subtotal-m.discount; return m; }
 
     void discountDialog(Button button){
         final EditText d=input("ডিসকাউন্টের টাকা — 100 / ১০০");
@@ -54,7 +63,12 @@
         AlertDialog dlg=new AlertDialog.Builder(this).setTitle("Print Preview • 80mm").setView(box).setNegativeButton("Close",null).setPositiveButton("🖨 Print",(d,w)->printMemo(m)).create(); dlg.show();
     }
     void saveAndMaybePrint(){ if(items.isEmpty()){toast("কমপক্ষে ১টি পণ্য যোগ করুন");return;} Memo m=readMemo(); persistMemo(m); if(autoPrint!=null&&autoPrint.isChecked())printMemo(m);else toast("মেমো "+memoLabel(m.no)+" সেভ হয়েছে ✓"); }
-    void persistMemo(Memo m){ saveMemo(m); memoNo=nextMemoNoForDate(m.date); getPreferences(0).edit().putInt("memo",memoNo).apply(); }
+    void persistMemo(Memo m){
+        if(editingMemoNo>0 && editingHistoryIndex>=0 && editingHistoryIndex<history.size()){
+            history.set(editingHistoryIndex,m); saveHistory(); editingMemoNo=0; editingHistoryIndex=-1; return;
+        }
+        saveMemo(m); memoNo=nextMemoNoForDate(m.date); getPreferences(0).edit().putInt("memo",memoNo).apply();
+    }
     void saveMemo(Memo m){ history.removeIf(x->x.no==m.no && x.date.equals(m.date)); history.add(0,m); while(history.size()>100)history.remove(history.size()-1); saveHistory(); }
 
     Bitmap renderMemo(Memo m){
@@ -166,7 +180,7 @@
 
     void printMemo(Memo m){ if(socket==null||!socket.isConnected()){toast("আগে Bluetooth printer connect করুন");printerScreen();return;} final Memo toPrint=m;new Thread(()->{try{OutputStream out=socket.getOutputStream();out.write(new byte[]{0x1B,0x40});Bitmap b=renderMemo(toPrint);sendRaster(out,b);out.write(new byte[]{0x1B,0x64,0x06});out.write(new byte[]{0x1D,0x56,0x00});out.flush();runOnUiThread(()->toast("মেমো print হয়েছে ✓"));}catch(Exception e){runOnUiThread(()->toast("Print failed — printer connection check করুন"));}}).start(); }
     void sendRaster(OutputStream out,Bitmap b)throws IOException{int wb=(b.getWidth()+7)/8;int h=b.getHeight();out.write(new byte[]{0x1D,0x76,0x30,0x00,(byte)(wb&255),(byte)((wb>>8)&255),(byte)(h&255),(byte)((h>>8)&255)});byte[] row=new byte[wb];for(int y=0;y<h;y++){Arrays.fill(row,(byte)0);for(int x=0;x<b.getWidth();x++){int col=b.getPixel(x,y);int gray=(Color.red(col)*299+Color.green(col)*587+Color.blue(col)*114)/1000;if(gray<170)row[x>>3]|=(byte)(0x80>>(x&7));}out.write(row);if(y%64==0)out.flush();}}
-    Memo sampleTestMemo(){Memo m=new Memo();m.no=0;m.date=memoDate();m.name="TEST";m.address="80mm Bluetooth Printer";m.items.add(new Item("Test Product","২","৫০","১০০"));m.subtotal=100;m.discount=0;m.total=100;return m;}
+    Memo sampleTestMemo(){Memo m=new Memo();m.no=0;m.date=memoDate();m.time=currentTime();m.name="TEST";m.address="80mm Bluetooth Printer";m.items.add(new Item("Test Product","২","৫০","১০০"));m.subtotal=100;m.discount=0;m.total=100;return m;}
 
     void settings(){ openScreen("settings"); shell("Settings","পণ্য, default price ও carton pcs",true);ScrollView sv=scroll();LinearLayout c=content(sv);c.addView(section("Default Product Price + Carton Setting"));LinearLayout add=card();EditText n=input("পণ্যের নাম");EditText p=input("ডিফল্ট প্রতি পিস দাম");EditText cp=input("১ কার্টুনে কত পিস? যেমন ২৪");p.setInputType(android.text.InputType.TYPE_CLASS_TEXT);cp.setInputType(android.text.InputType.TYPE_CLASS_TEXT);add.addView(n);add.addView(gap(8));add.addView(p);add.addView(gap(8));add.addView(cp);add.addView(gap(4));add.addView(tv("যেমন: Pata → ১ কার্টুন = ২৪ pcs. এই সেটিং থাকলে ১কা = ২৪ pcs হিসেবে হিসাব হবে।",12,MUTED));add.addView(gap(8));Button save=action("＋  Save / Update");save.setOnClickListener(v->{String name=n.getText().toString().trim();double val=num(p.getText().toString());String cpRaw=cp.getText().toString().trim();double cpVal=cpRaw.isEmpty()?0:num(cpRaw);if(name.isEmpty()||val<=0){toast("পণ্য ও দাম সঠিকভাবে দিন");return;}prices.put(name,val);if(cpVal>0)cartonPcs.put(name,cpVal);else cartonPcs.remove(name);savePrices();saveCartonPcs();n.setText("");p.setText("");cp.setText("");refreshCurrentScreen();});add.addView(save);c.addView(add);c.addView(gap(14));c.addView(section("Saved Product Settings"));if(prices.isEmpty())c.addView(tv("কোনো product save করা নেই",14,MUTED));for(String k:new ArrayList<>(prices.keySet())){LinearLayout r=card();r.setOrientation(LinearLayout.HORIZONTAL);LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView a=tv(k,15,TEXT);a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);info.addView(a);Double cpv=cartonPcs.get(k);info.addView(tv("৳"+bn(formatNumber(prices.get(k)))+" / pcs"+(cpv!=null?"   •   ১ carton = "+bn(formatNumber(cpv))+" pcs":"   •   carton setting নেই"),12,MUTED));Button del=lightAction("Delete");del.setOnClickListener(v->{prices.remove(k);cartonPcs.remove(k);savePrices();saveCartonPcs();refreshCurrentScreen();});r.addView(info,new LinearLayout.LayoutParams(0,dp(60),1));r.addView(del,new LinearLayout.LayoutParams(dp(82),dp(60)));c.addView(r);c.addView(gap(8));}}
 
@@ -279,7 +293,7 @@
 
         ArrayList<Memo> visible=new ArrayList<>();
         for(Memo m:history) if(date!=null && date.equals(m.date)) visible.add(m);
-        Collections.sort(visible,(a,b)->Integer.compare(a.no,b.no));
+        Collections.sort(visible,(a,b)->Integer.compare(b.no,a.no));
 
         if(visible.isEmpty()){
             c.addView(tv("এই তারিখে কোনো memo নেই",15,MUTED));
@@ -360,7 +374,7 @@
             top.addView(h,new LinearLayout.LayoutParams(0,dp(48),1));
             r.addView(top);
 
-            r.addView(tv(m.date+"  •  "+(m.name.isEmpty()?"No customer":m.name),13,MUTED));
+            r.addView(tv(m.date+"  •  "+(m.time==null||m.time.isEmpty()?"সময় নেই":m.time)+"  •  "+(m.name.isEmpty()?"No customer":m.name),13,MUTED));
             r.addView(tv("পণ্য: "+bn(String.valueOf(m.items.size()))+"   •   মোট: ৳"+bn(formatNumber(m.total)),14,TEXT));
 
             ImageView thumb=new ImageView(this);
@@ -386,13 +400,14 @@
             LinearLayout a=new LinearLayout(this);
             Button view=lightAction("View");
             view.setOnClickListener(v->showSaved(m));
+            Button editMemo=lightAction("Edit");
+            editMemo.setOnClickListener(v->editSavedMemo(m));
             Button print=action("Print");
             print.setOnClickListener(v->printMemo(m));
 
             a.addView(view,new LinearLayout.LayoutParams(0,50,1));
-            LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(0,50,1);
-            pp.setMargins(8,0,0,0);
-            a.addView(print,pp);
+            LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,50,1); ep.setMargins(6,0,0,0); a.addView(editMemo,ep);
+            LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(0,50,1); pp.setMargins(6,0,0,0); a.addView(print,pp);
             r.addView(a);
 
             c.addView(r);
@@ -467,6 +482,7 @@
         c.addView(totalCard,totalLp);
     }
 
+    void editSavedMemo(Memo m){editingMemoNo=m.no;editingHistoryIndex=history.indexOf(m);items.clear();for(Item x:m.items)items.add(new Item(x.name,x.qty,x.price,x.amount));discountAmount=m.discount;manualDate=m.date;manualTime=(m.time==null?"":m.time);newMemo();if(customer!=null)customer.setText(m.name);if(address!=null)address.setText(m.address);if(dateView!=null)dateView.setText(displayMemoDate());if(timeView!=null)timeView.setText(displayMemoTime());refreshProducts();}
     void showSaved(Memo m){ImageView image=new ImageView(this);image.setImageBitmap(renderMemo(m));image.setAdjustViewBounds(true);image.setScaleType(ImageView.ScaleType.FIT_CENTER);ScrollView s=new ScrollView(this);s.setPadding(dp(8),dp(8),dp(8),dp(8));s.addView(image);new AlertDialog.Builder(this).setTitle("Memo "+memoLabel(m.no)).setView(s).setNegativeButton("Close",null).setPositiveButton("Print",(d,w)->printMemo(m)).show();}
 
     String memoDate(){ Calendar c=Calendar.getInstance(); c.add(Calendar.DAY_OF_YEAR,1); return new SimpleDateFormat("dd/MM/yyyy",Locale.getDefault()).format(c.getTime()); }
@@ -482,19 +498,3 @@
             if(ch>='০'&&ch<='৯') b.append((char)('0'+ch-'০'));
             else if(ch==','||ch==' '||ch=='৳') {}
             else b.append(ch);
-        }
-        String z=b.toString().trim();
-        if(z.matches("^[0-9]+(?:[.][0-9]+)?\\s*/\\s*[cC]$")) z=z.substring(0,z.indexOf('/')).trim();
-        else if(z.matches("^\\d+(?:\\.\\d+)?\\s*কা$")) z=z.substring(0,z.length()-2).trim();
-        try{return Double.parseDouble(z);}catch(Exception e){return 0;}
-    }
-    double total(){double t=0;for(Item x:items)t+=num(x.amount);return t;}
-    void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
-
-    boolean isCartonQty(String s){
-        if(s==null)return false;
-        String z=s.trim();
-        return z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*/\\s*[cC]$")
-            || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\s*কা$");
-    }
-    Double findCartonPcs(String name){
