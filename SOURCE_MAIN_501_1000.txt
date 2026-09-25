@@ -28,7 +28,7 @@
         if(totalView!=null)totalView.setText("মোট টাকা: ৳"+bn(formatNumber(sum))); if(countView!=null)countView.setText(bn(String.valueOf(items.size()))+" পণ্য"); updateLivePreview(); if(livePreview!=null)livePreview.post(()->updateLivePreview());
     }
 
-    Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m m.no=editingMemoNo>0?editingMemoNo:nextMemoNoForDate(m.date); m.name=customer==null?"":customer.getText().toString().trim(); m.address=address==null?"":address.getText().toString().trim(); for(Item x:items)m.items.add(new Item(x.name,x.qty,x.price,x.amount)); m.subtotal=total(); m.discount=Math.min(Math.max(0,discountAmount),m.subtotal); m.total=m.subtotal-m.discount; return m; }
+    Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.no=editingMemoNo>0?editingMemoNo:nextMemoNoForDate(m.date); m.name=customer==null?"":customer.getText().toString().trim(); m.address=address==null?"":address.getText().toString().trim(); for(Item x:items)m.items.add(new Item(x.name,x.qty,x.price,x.amount)); m.subtotal=total(); m.discount=Math.min(Math.max(0,discountAmount),m.subtotal); m.total=m.subtotal-m.discount; return m; }
 
     void discountDialog(Button button){
         final EditText d=input("ডিসকাউন্টের টাকা — 100 / ১০০");
