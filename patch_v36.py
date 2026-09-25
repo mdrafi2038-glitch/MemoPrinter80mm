@@ -41,7 +41,7 @@ rep('''    String displayMemoDate(){ return manualDate==null||manualDate.trim().
     String displayMemoDate(){ return manualDate==null||manualDate.trim().isEmpty()?plusDaysDate(1):manualDate; }
 
     void automaticInput(){''','helpers')
-rep('Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.no=nextMemoNoForDate(m.date);','Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m m.no=editingMemoNo>0?editingMemoNo:nextMemoNoForDate(m.date);','read')
+rep('Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.no=nextMemoNoForDate(m.date);','Memo readMemo(){ Memo m=new Memo(); m.date=displayMemoDate(); m.no=editingMemoNo>0?editingMemoNo:nextMemoNoForDate(m.date);','read')
 rep('''    void persistMemo(Memo m){ saveMemo(m); memoNo=nextMemoNoForDate(m.date); getPreferences(0).edit().putInt("memo",memoNo).apply(); }
     void saveMemo(Memo m){ history.removeIf(x->x.no==m.no && x.date.equals(m.date)); history.add(0,m); while(history.size()>100)history.remove(history.size()-1); saveHistory(); }''','''    void persistMemo(Memo m){
         if(editingMemoNo>0 && editingHistoryIndex>=0 && editingHistoryIndex<history.size()){
