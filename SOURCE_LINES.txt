@@ -1,1 +1,1 @@
-1047 app/src/main/java/com/memoprinter/eighty/MainActivity.java
+1046 app/src/main/java/com/memoprinter/eighty/MainActivity.java
