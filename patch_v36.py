@@ -20,20 +20,19 @@ old='''        LinearLayout dateCard=card();
         dateCard.addView(dateRow);
         c.addView(dateCard); c.addView(gap(12));'''
 new='''        LinearLayout dateCard=card();
-        LinearLayout quickDates=new LinearLayout(this); quickDates.setGravity(Gravity.CENTER_VERTICAL);
-        Button todayBtn=lightAction("Today"); todayBtn.setOnClickListener(v->{manualDate=todayDate(); if(dateView!=null)dateView.setText(manualDate); updateLivePreview();});
-        Button plus2Btn=lightAction("+2 Days"); plus2Btn.setOnClickListener(v->{manualDate=plusDaysDate(2); if(dateView!=null)dateView.setText(manualDate); updateLivePreview();});
-        Button customBtn=lightAction("Custom Date"); customBtn.setOnClickListener(v->dateDialog());
-        quickDates.addView(todayBtn,new LinearLayout.LayoutParams(0,dp(46),1)); LinearLayout.LayoutParams p2=new LinearLayout.LayoutParams(0,dp(46),1); p2.setMargins(dp(6),0,dp(6),0); quickDates.addView(plus2Btn,p2); quickDates.addView(customBtn,new LinearLayout.LayoutParams(0,dp(46),1));
-        dateCard.addView(quickDates); dateCard.addView(gap(8));
         LinearLayout dateRow=new LinearLayout(this); dateRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout dateInfo=new LinearLayout(this); dateInfo.setOrientation(LinearLayout.VERTICAL); dateInfo.addView(tv("মেমোর তারিখ",13,MUTED));
-        dateView=tv(displayMemoDate(),18,TEXT); dateView.setTypeface(Typeface.DEFAULT,Typeface.BOLD); dateInfo.addView(dateView);
+        LinearLayout dateInfo=new LinearLayout(this); dateInfo.setOrientation(LinearLayout.VERTICAL);
+        dateInfo.addView(tv("মেমোর তারিখ",13,MUTED));
+        dateView=tv(displayMemoDate(),18,TEXT); dateView.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        dateInfo.addView(dateView);
         dateRow.addView(dateInfo,new LinearLayout.LayoutParams(0,dp(56),1));
+        Button editDate=lightAction("✎  Edit Date"); editDate.setOnClickListener(v->dateDialog());
+        dateRow.addView(editDate,new LinearLayout.LayoutParams(dp(120),dp(50)));
         LinearLayout timeInfo=new LinearLayout(this); timeInfo.setOrientation(LinearLayout.VERTICAL); timeInfo.addView(tv("সময়",13,MUTED));
         timeView=tv(displayMemoTime(),18,TEXT); timeView.setTypeface(Typeface.DEFAULT,Typeface.BOLD); timeInfo.addView(timeView);
         dateRow.addView(timeInfo,new LinearLayout.LayoutParams(dp(110),dp(56)));
-        Button editTime=lightAction("Edit Time"); editTime.setOnClickListener(v->timeDialog()); dateRow.addView(editTime,new LinearLayout.LayoutParams(dp(105),dp(50)));
+        Button editTime=lightAction("Edit Time"); editTime.setOnClickListener(v->timeDialog());
+        dateRow.addView(editTime,new LinearLayout.LayoutParams(dp(105),dp(50)));
         dateCard.addView(dateRow); c.addView(dateCard); c.addView(gap(12));'''
 rep(old,new,'date card')
 rep('''        dlg.setTitle("মেমোর তারিখ");
