@@ -51,7 +51,6 @@ rep('''    void persistMemo(Memo m){ saveMemo(m); memoNo=nextMemoNoForDate(m.dat
     }
     void saveMemo(Memo m){ history.removeIf(x->x.no==m.no && x.date.equals(m.date)); history.add(0,m); while(history.size()>100)history.remove(history.size()-1); saveHistory(); }''','persist')
 rep('Collections.sort(visible,(a,b)->Integer.compare(a.no,b.no));','Collections.sort(visible,(a,b)->Integer.compare(b.no,a.no));','order')
-rep('r.addView(tv(m.date+"  •  "+(m.time==null||m.time.isEmpty()?"সময় নেই":m.time)+"  •  "+(m.name.isEmpty()?"No customer":m.name),13,MUTED));','r.addView(tv(m.date+"  •  "+(m.name.isEmpty()?"No customer":m.name),13,MUTED));','time')
 old='''            Button view=lightAction("View");
             view.setOnClickListener(v->showSaved(m));
             Button print=action("Print");
