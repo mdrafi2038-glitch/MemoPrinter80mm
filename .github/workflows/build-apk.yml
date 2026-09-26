@@ -74,31 +74,6 @@ jobs:
           if "SalesFeaturesActivity" not in ms: ms=ms.replace("    </application>",act+"    </application>")
           m.write_text(ms,encoding="utf-8")
           PY
-      - name: Export source for integration
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          echo '--- FILE LIST ---' > SOURCE_INSPECT.txt
-          find . -type f ! -path './.gradle/*' ! -path './build/*' ! -path './app/build/*' | sort >> SOURCE_INSPECT.txt
-          echo '' >> SOURCE_INSPECT.txt
-          echo '--- MANIFEST ---' >> SOURCE_INSPECT.txt
-          find app/src/main -name AndroidManifest.xml -print -exec sed -n '1,240p' {} \; >> SOURCE_INSPECT.txt
-          echo '' >> SOURCE_INSPECT.txt
-          echo '--- MAIN ACTIVITY FILES ---' >> SOURCE_INSPECT.txt
-          for f in $(find app/src/main/java -name 'MainActivity.java' -o -name 'MainActivity.kt'); do echo "### $f" >> SOURCE_INSPECT.txt; sed -n '1,2000p' "$f" >> SOURCE_INSPECT.txt; done
-          echo '' >> SOURCE_INSPECT.txt
-          wc -l app/src/main/java/com/memoprinter/eighty/MainActivity.java > SOURCE_LINES.txt
-          sed -n '501,1000p' app/src/main/java/com/memoprinter/eighty/MainActivity.java > SOURCE_MAIN_501_1000.txt
-          sed -n '1001,1500p' app/src/main/java/com/memoprinter/eighty/MainActivity.java > SOURCE_MAIN_1001_1500.txt
-          sed -n '1501,2000p' app/src/main/java/com/memoprinter/eighty/MainActivity.java > SOURCE_MAIN_1501_2000.txt
-          echo '--- RESOURCES ---' >> SOURCE_INSPECT.txt
-          find app/src/main/res -type f \( -name '*.xml' -o -name '*.json' \) -print | sort | while read f; do echo "### $f" >> SOURCE_INSPECT.txt; sed -n '1,300p' "$f" >> SOURCE_INSPECT.txt; done
-          cp SOURCE_LINES.txt SOURCE_MAIN_*.txt "$GITHUB_WORKSPACE"/
-          cd "$GITHUB_WORKSPACE"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add SOURCE_INSPECT.txt SOURCE_LINES.txt SOURCE_MAIN_*.txt
-          git commit -m 'Temporary source inspection' || true
-          git push
       - name: Inspect MainActivity source
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
