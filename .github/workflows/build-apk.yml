@@ -108,14 +108,52 @@ jobs:
           }
           EOF
 
-      - name: Build APK
+      - name: Configure stable release signing
         working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MEMO_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.MEMO_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.MEMO_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.MEMO_KEY_PASSWORD }}
         run: |
-          gradle :app:assembleDebug --no-daemon --stacktrace
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "Stable signing secrets are not configured."
+            echo "Configure MEMO_KEYSTORE_BASE64, MEMO_KEYSTORE_PASSWORD, MEMO_KEY_ALIAS and MEMO_KEY_PASSWORD in GitHub Actions secrets."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > memo-release.jks
+          cat >> app/build.gradle <<'EOF'
 
-      - name: Upload APK
+          android {
+              signingConfigs {
+                  memoRelease {
+                      storeFile file("memo-release.jks")
+                      storePassword System.getenv("KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("KEY_ALIAS")
+                      keyPassword System.getenv("KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.memoRelease
+                      minifyEnabled false
+                  }
+              }
+          }
+          EOF
+
+      - name: Build signed release APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.MEMO_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.MEMO_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.MEMO_KEY_PASSWORD }}
+        run: |
+          gradle :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: MemoPrinter80mm-APK
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
