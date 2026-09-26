@@ -45,6 +45,23 @@ jobs:
           echo "Project directory:"
           echo "$PROJECT_DIR"
 
+      - name: Increment app versionCode for update
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/build.gradle')
+          s=p.read_text(encoding='utf-8')
+          m=re.search(r'versionCode\\s+(\\d+)',s)
+          if not m:
+              raise SystemExit('versionCode not found in app/build.gradle')
+          old=int(m.group(1))
+          new=old+1
+          s=s[:m.start(1)]+str(new)+s[m.end(1):]
+          p.write_text(s,encoding='utf-8')
+          print(f'versionCode: {old} -> {new}')
+          PY
       - name: Apply Saved Memos date-folder update
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
