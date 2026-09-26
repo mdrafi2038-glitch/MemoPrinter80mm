@@ -53,7 +53,7 @@ jobs:
           import re
           p=Path('app/build.gradle')
           s=p.read_text(encoding='utf-8')
-          m=re.search(r'versionCode\\s+(\\d+)',s)
+          m=re.search(r'versionCode\s+(\d+)',s)
           if not m:
               raise SystemExit('versionCode not found in app/build.gradle')
           old=int(m.group(1))
