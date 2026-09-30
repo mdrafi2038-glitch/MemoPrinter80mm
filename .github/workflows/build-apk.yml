@@ -71,6 +71,7 @@ jobs:
           python3 "$GITHUB_WORKSPACE/patch_v35.py"
           python3 "$GITHUB_WORKSPACE/patch_v36.py"
           python3 "$GITHUB_WORKSPACE/patch_v37.py"
+          python3 "$GITHUB_WORKSPACE/patch_v38.py"
 
 
       - name: Add Summary Printer
@@ -181,3 +182,17 @@ jobs:
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/app-release.apk
             ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish signed APK to GitHub Releases
+        if: ${{ !hashFiles(format('{0}/.memo_debug_build', env.PROJECT_DIR)) }}
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION_CODE=$(grep -oP 'versionCode\s+\K\d+' app/build.gradle | head -1)
+          APK="app/build/outputs/apk/release/app-release.apk"
+          TAG="build-${VERSION_CODE}"
+          echo "Publishing $TAG"
+          gh release create "$TAG" "$APK#MemoPrinter80mm.apk" \
+            --title "Memo Printer Build ${VERSION_CODE}" \
+            --notes "Automatic update release for Memo Printer 80mm."
