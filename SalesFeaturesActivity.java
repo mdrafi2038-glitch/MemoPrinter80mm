@@ -30,9 +30,9 @@ public class SalesFeaturesActivity extends Activity{
  String productMatchKey(String n){
   if(n==null)return "";
   String z=java.text.Normalizer.normalize(n.trim(),java.text.Normalizer.Form.NFKC);
-  // Keep spaces inside product names. Only collapse repeated whitespace.
-  // "8P  Korean" matches "8P Korean", while "8PKorean" stays different.
-  z=z.replaceAll("\\s+"," ");
+  // Ignore all whitespace when comparing product names.
+  // "8P Korean", "8PKorean" and "8P  Korean" are the same product.
+  z=z.replaceAll("\\s+","");
   return z.toLowerCase(Locale.ROOT);
  }
  boolean isRamenCombo(String n){if(n==null)return false;String z=n.trim();if(isPlainRamen(z))return true;if(!z.contains("+"))return z.toLowerCase(Locale.ROOT).contains("ramen")||z.contains("রামেন")||isRamenFlavorToken(z);for(String part:z.split("\\+"))if(isRamenFlavorToken(cleanRamenToken(part)))return true;return false;}
