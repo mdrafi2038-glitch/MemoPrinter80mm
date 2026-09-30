@@ -135,9 +135,9 @@ jobs:
           KEY_PASSWORD: ${{ secrets.MEMO_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "Stable signing secrets are not configured."
-            echo "Configure MEMO_KEYSTORE_BASE64, MEMO_KEYSTORE_PASSWORD, MEMO_KEY_ALIAS and MEMO_KEY_PASSWORD in GitHub Actions secrets."
-            exit 1
+            echo "Stable signing secrets are not configured; falling back to debug APK."
+            touch .memo_debug_build
+            exit 0
           fi
           echo "$KEYSTORE_BASE64" | base64 --decode > memo-release.jks
           cat >> app/build.gradle <<'EOF'
@@ -167,11 +167,17 @@ jobs:
           KEY_ALIAS: ${{ secrets.MEMO_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.MEMO_KEY_PASSWORD }}
         run: |
-          gradle :app:assembleRelease --no-daemon --stacktrace
+          if [ -f .memo_debug_build ]; then
+            gradle :app:assembleDebug --no-daemon --stacktrace
+          else
+            gradle :app:assembleRelease --no-daemon --stacktrace
+          fi
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: MemoPrinter80mm-APK
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/app-release.apk
+          path: |
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/app-release.apk
+            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
