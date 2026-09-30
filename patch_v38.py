@@ -65,9 +65,9 @@ if "androidx.core.content.FileProvider" not in m:
  m=m.replace("    </application>",provider+"    </application>",1)
 manifest.write_text(m,encoding="utf-8")
 s=main.read_text(encoding="utf-8")
-anchor='memoNo=getPreferences(0).getInt("memo",1); if(memoNo<1 || memoNo>999999){ memoNo=1; } loadPrices(); loadHistory(); loadPrinter(); home();'
+anchor='loadPrinter(); home();'
 if "new AppUpdater(this).check(false);" not in s:
- if anchor not in s:raise SystemExit("onCreate updater anchor missing")
+ if anchor not in s: raise SystemExit("onCreate updater anchor missing")
  s=s.replace(anchor,anchor+'\n        new AppUpdater(this).check(false);',1)
 if "AppUpdater.onResume(this);" not in s:s=s.replace('    @Override public void onBackPressed(){','    @Override protected void onResume(){ super.onResume(); AppUpdater.onResume(this); }\n\n    @Override public void onBackPressed(){',1)
 main.write_text(s,encoding="utf-8")
