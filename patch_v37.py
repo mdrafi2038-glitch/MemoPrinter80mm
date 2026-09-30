@@ -2,6 +2,9 @@ from pathlib import Path
 root=Path('.')
 main=root/'app/src/main/java/com/memoprinter/eighty/MainActivity.java'
 s=main.read_text(encoding='utf-8')
+if "UpdateActivity" in s:
+    main.write_text(s,encoding="utf-8")
+    raise SystemExit(0)
 anchor='''        c.addView(r4,new LinearLayout.LayoutParams(-1,dp(142)));
         c.addView(gap(10));
 
