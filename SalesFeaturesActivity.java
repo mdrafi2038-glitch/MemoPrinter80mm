@@ -25,8 +25,16 @@ public class SalesFeaturesActivity extends Activity{
  boolean isPlainRamen(String n){String z=n==null?"":n.trim().toLowerCase(Locale.ROOT);return z.equals("ramen")||z.equals("রামেন");}
  boolean isRamenFlavorToken(String n){String z=n==null?"":n.trim().toLowerCase(Locale.ROOT);return z.equals("চিজ")||z.equals("হট")||z.equals("২এক্স")||z.equals("2x")||z.equals("২x")||z.equals("2এক্স");}
  String cleanRamenToken(String n){String z=n==null?"":n.trim();return z.replaceAll("(?i)^ramen\\s*[:\\-]?\\s*","").trim();}
+ // Product matching ignores whitespace differences, but the original display name is preserved.
+ // So "8P Korean", "8P  Korean" and "8PKorean" are treated as the same product in Summary.
+ String productMatchKey(String n){
+  if(n==null)return "";
+  String z=n.trim(); StringBuilder b=new StringBuilder();
+  for(int i=0;i<z.length();i++){char c=z.charAt(i);if(!Character.isWhitespace(c))b.append(Character.toLowerCase(c));}
+  return b.toString();
+ }
  boolean isRamenCombo(String n){if(n==null)return false;String z=n.trim();if(isPlainRamen(z))return true;if(!z.contains("+"))return z.toLowerCase(Locale.ROOT).contains("ramen")||z.contains("রামেন")||isRamenFlavorToken(z);for(String part:z.split("\\+"))if(isRamenFlavorToken(cleanRamenToken(part)))return true;return false;}
- LinkedHashMap<String,Double> summaryData(String date){LinkedHashMap<String,Double> m=new LinkedHashMap<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){JSONObject memo=a.getJSONObject(i);if(date!=null&&!date.equals(memo.optString("date")))continue;JSONArray q=memo.optJSONArray("items");if(q==null)continue;for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);String n=x.optString("name").trim();if(n.isEmpty()||isRamenCombo(n))continue;String old=null;for(String k:m.keySet())if(k.equalsIgnoreCase(n)){old=k;break;}double v=summaryQtyInPieces(n,x.optString("price"),x.optString("qty"));if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);}}}catch(Exception ignored){}return m;}
+ LinkedHashMap<String,Double> summaryData(String date){LinkedHashMap<String,Double> m=new LinkedHashMap<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){JSONObject memo=a.getJSONObject(i);if(date!=null&&!date.equals(memo.optString("date")))continue;JSONArray q=memo.optJSONArray("items");if(q==null)continue;for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);String n=x.optString("name").trim();if(n.isEmpty()||isRamenCombo(n))continue;String old=null;String nk=productMatchKey(n);for(String k:m.keySet())if(productMatchKey(k).equals(nk)){old=k;break;}double v=summaryQtyInPieces(n,x.optString("price"),x.optString("qty"));if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);}}}catch(Exception ignored){}return m;}
  LinkedHashMap<String,Double> ramenSummaryData(String date){LinkedHashMap<String,Double> r=new LinkedHashMap<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){JSONObject memo=a.getJSONObject(i);if(date!=null&&!date.equals(memo.optString("date")))continue;JSONArray q=memo.optJSONArray("items");if(q==null)continue;for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);String n=x.optString("name").trim();if(n.isEmpty()||!isRamenCombo(n))continue;double qty=summaryQtyInPieces(n,x.optString("price"),x.optString("qty"));if(qty<=0)continue;if(isPlainRamen(n)){r.put("Ramen",r.containsKey("Ramen")?r.get("Ramen")+qty:qty);continue;}String base=n.replaceAll("(?i)ramen","").replace("রামেন","").replaceAll("=\\s*[0-9০-৯.]+","").trim();String[] parts=base.split("\\+");ArrayList<String> flavors=new ArrayList<>();for(String part:parts){String f=cleanRamenToken(part);if(!f.isEmpty()&&!flavors.contains(f))flavors.add(f);}if(flavors.isEmpty())continue;double each=qty/flavors.size();for(String f:flavors){String old=null;for(String k:r.keySet())if(k.equalsIgnoreCase(f)){old=k;break;}if(old!=null)r.put(old,r.get(old)+each);else r.put(f,each);}}}}catch(Exception ignored){}return r;}
  JSONArray mainHistory(){try{return new JSONArray(mainPrefs().getString("history","[]"));}catch(Exception e){return new JSONArray();}}
  android.content.SharedPreferences mainPrefs(){return getSharedPreferences("MainActivity",MODE_PRIVATE);}
@@ -36,7 +44,7 @@ public class SalesFeaturesActivity extends Activity{
    String q=name==null?"":name.trim();
    // 1) Exact product-name match.
    if(!q.isEmpty()){
-    Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();if(k.trim().equalsIgnoreCase(q))return o.optDouble(k,0);}
+    Iterator<String>it=o.keys();while(it.hasNext()){String k=it.next();if(productMatchKey(k).equals(productMatchKey(q)))return o.optDouble(k,0);}
    }
    // 2) Match product name against the saved default-price keys. This handles
    // English/Bangla display-name changes when the underlying default price is the same.
