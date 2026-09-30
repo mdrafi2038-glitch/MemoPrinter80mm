@@ -127,7 +127,7 @@ jobs:
           }
           EOF
 
-      - name: Configure stable release signing
+      - name: Configure production release signing
         working-directory: ${{ env.PROJECT_DIR }}
         env:
           KEYSTORE_BASE64: ${{ secrets.MEMO_KEYSTORE_BASE64 }}
@@ -135,12 +135,15 @@ jobs:
           KEY_ALIAS: ${{ secrets.MEMO_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.MEMO_KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "Stable signing secrets are not configured; falling back to debug APK."
-            touch .memo_debug_build
-            exit 0
-          fi
-          echo "$KEYSTORE_BASE64" | base64 --decode > memo-release.jks
+          set -euo pipefail
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "ERROR: Missing required production signing secret: $name"
+              exit 1
+            fi
+          done
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > memo-release.jks
+          test -s memo-release.jks
           cat >> app/build.gradle <<'EOF'
 
           android {
@@ -161,29 +164,32 @@ jobs:
           }
           EOF
 
-      - name: Build signed release APK
+      - name: Build production-signed release APK
         working-directory: ${{ env.PROJECT_DIR }}
         env:
           KEYSTORE_PASSWORD: ${{ secrets.MEMO_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.MEMO_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.MEMO_KEY_PASSWORD }}
         run: |
-          if [ -f .memo_debug_build ]; then
-            gradle :app:assembleDebug --no-daemon --stacktrace
-          else
-            gradle :app:assembleRelease --no-daemon --stacktrace
-          fi
+          set -euo pipefail
+          gradle :app:assembleRelease --no-daemon --stacktrace
+          test -s app/build/outputs/apk/release/app-release.apk
 
-      - name: Upload signed APK
+      - name: Verify production APK signature
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          "$APKSIGNER" verify --verbose app/build/outputs/apk/release/app-release.apk
+          echo "Production APK signature verification passed."
+
+      - name: Upload production APK
         uses: actions/upload-artifact@v4
         with:
-          name: MemoPrinter80mm-APK
-          path: |
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/app-release.apk
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          name: MemoPrinter80mm-Production-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
-
-      - name: Publish signed APK to GitHub Releases
+      - name: Publish production APK to GitHub Releases
         if: ${{ !hashFiles(format('{0}/.memo_debug_build', env.PROJECT_DIR)) }}
         working-directory: ${{ env.PROJECT_DIR }}
         env:
