@@ -133,7 +133,7 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.MEMO_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.MEMO_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.MEMO_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.MEMO_KEY_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.MEMO_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
           for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
