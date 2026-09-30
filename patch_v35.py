@@ -63,10 +63,17 @@ helpers = '''    boolean isCartonQty(String s){
         return z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*/\\\\s*[cC]$")
             || z.matches("^[0-9০-৯]+(?:[.][0-9]+)?\\\\s*কা$");
     }
+    String productMatchKey(String n){
+        if(n==null)return "";
+        String z=java.text.Normalizer.normalize(n.trim(),java.text.Normalizer.Form.NFKC);
+        StringBuilder b=new StringBuilder();
+        for(int i=0;i<z.length();i++){char c=z.charAt(i);if(!Character.isWhitespace(c))b.append(Character.toLowerCase(c));}
+        return b.toString();
+    }
     Double findCartonPcs(String name){
         if(name==null)return null;
-        String q=name.trim();
-        for(String k:cartonPcs.keySet()) if(k.equalsIgnoreCase(q)) return cartonPcs.get(k);
+        String q=productMatchKey(name);
+        for(String k:cartonPcs.keySet()) if(productMatchKey(k).equals(q)) return cartonPcs.get(k);
         return null;
     }
     Double findCartonPcsAny(String raw,String converted){
