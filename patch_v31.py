@@ -4,6 +4,11 @@ import re
 p=Path("app/src/main/java/com/memoprinter/eighty/MainActivity.java")
 s=p.read_text(encoding="utf-8")
 
+# The date-folder patch may already be present in the source ZIP; in that case leave it unchanged.
+if "nextMemoNoForDate" in s:
+    p.write_text(s,encoding="utf-8")
+    raise SystemExit(0)
+
 # Per-date serials.
 s=s.replace('shell("নতুন তৈরি করুন","মেমো নং "+memoLabel(memoNo)+" • তারিখ পরিবর্তন করা যাবে",true);',
             'memoNo=nextMemoNoForDate(displayMemoDate());\n        shell("নতুন তৈরি করুন","মেমো নং "+memoLabel(memoNo)+" • তারিখ পরিবর্তন করা যাবে",true);',1)
