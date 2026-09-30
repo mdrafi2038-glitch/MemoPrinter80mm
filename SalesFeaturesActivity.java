@@ -29,8 +29,13 @@ public class SalesFeaturesActivity extends Activity{
  // So "8P Korean", "8P  Korean" and "8PKorean" are treated as the same product in Summary.
  String productMatchKey(String n){
   if(n==null)return "";
-  String z=n.trim(); StringBuilder b=new StringBuilder();
-  for(int i=0;i<z.length();i++){char c=z.charAt(i);if(!Character.isWhitespace(c))b.append(Character.toLowerCase(c));}
+  String z=java.text.Normalizer.normalize(n.trim(),java.text.Normalizer.Form.NFKC);
+  StringBuilder b=new StringBuilder();
+  for(int i=0;i<z.length();i++){
+   char c=z.charAt(i);
+   if(Character.isWhitespace(c)||Character.isSpaceChar(c)) continue;
+   b.append(Character.toLowerCase(c));
+  }
   return b.toString();
  }
  boolean isRamenCombo(String n){if(n==null)return false;String z=n.trim();if(isPlainRamen(z))return true;if(!z.contains("+"))return z.toLowerCase(Locale.ROOT).contains("ramen")||z.contains("রামেন")||isRamenFlavorToken(z);for(String part:z.split("\\+"))if(isRamenFlavorToken(cleanRamenToken(part)))return true;return false;}
