@@ -18,8 +18,8 @@ insert='''        c.addView(r4,new LinearLayout.LayoutParams(-1,dp(142)));
         c.addView(gap(10));
 
         LinearLayout info=card();'''
-if anchor not in s: raise SystemExit('home update anchor missing')
-s=s.replace(anchor,insert,1)
+if anchor in s:
+    s=s.replace(anchor,insert,1)
 main.write_text(s,encoding='utf-8')
 
 (root/'app/src/main/java/com/memoprinter/eighty/UpdateActivity.java').write_text(r'''package com.memoprinter.eighty;
