@@ -6,7 +6,7 @@ permissions:
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, clean-zip-build-check ]
 
 jobs:
   build:
@@ -34,44 +34,6 @@ jobs:
           PROJECT_DIR=$(dirname "$SETTINGS")
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Project directory: $PROJECT_DIR"
-
-      - name: Apply Saved Memos date-folder update
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          python3 "$GITHUB_WORKSPACE/patch_v31.py"
-          python3 "$GITHUB_WORKSPACE/patch_v32.py"
-          python3 "$GITHUB_WORKSPACE/patch_v34.py"
-          python3 "$GITHUB_WORKSPACE/patch_v35.py"
-          python3 "$GITHUB_WORKSPACE/patch_v36.py"
-          python3 "$GITHUB_WORKSPACE/patch_v37.py"
-
-      - name: Add Summary Printer
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          cp "$GITHUB_WORKSPACE/SalesFeaturesActivity.java" app/src/main/java/com/memoprinter/eighty/SalesFeaturesActivity.java
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path("app/src/main/java/com/memoprinter/eighty/MainActivity.java")
-          s=p.read_text(encoding="utf-8")
-          anchor='        c.addView(r3,new LinearLayout.LayoutParams(-1,dp(142)));\n        c.addView(gap(10));\n\n        LinearLayout info=card();'
-          insert='        c.addView(r3,new LinearLayout.LayoutParams(-1,dp(142)));\n        c.addView(gap(10));\n\n        LinearLayout r4=new LinearLayout(this); r4.setOrientation(LinearLayout.HORIZONTAL);\n        homeCard(r4,"🧾","Summary","Saved memos summary",v->{Intent i=new Intent(this,SalesFeaturesActivity.class);i.putExtra("mode","summary");startActivity(i);});\n        c.addView(r4,new LinearLayout.LayoutParams(-1,dp(142)));\n        c.addView(gap(10));\n\n        LinearLayout info=card();'
-          if anchor not in s: raise SystemExit("home anchor missing")
-          s=s.replace(anchor,insert,1)
-          p.write_text(s,encoding="utf-8")
-          m=Path("app/src/main/AndroidManifest.xml")
-          ms=m.read_text(encoding="utf-8")
-          act='        <activity android:name=".SalesFeaturesActivity" android:exported="false" />\n'
-          if "SalesFeaturesActivity" not in ms:
-              ms=ms.replace("    </application>",act+"    </application>")
-          m.write_text(ms,encoding="utf-8")
-          PY
-
-      - name: Replace memo template with new design
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          cp app/src/main/res/drawable-nodpi/memo_template.jpg app/src/main/res/drawable-nodpi/memo_template_old.jpg
-          rm -f app/src/main/res/drawable-nodpi/memo_template.jpg
-          cp "$GITHUB_WORKSPACE/new_memo_template.png" app/src/main/res/drawable-nodpi/memo_template.png
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
