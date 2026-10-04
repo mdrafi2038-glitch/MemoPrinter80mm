@@ -65,6 +65,13 @@ jobs:
           m.write_text(ms,encoding="utf-8")
           PY
 
+      - name: Replace memo template with new design
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          cp app/src/main/res/drawable-nodpi/memo_template.jpg app/src/main/res/drawable-nodpi/memo_template_old.jpg
+          rm -f app/src/main/res/drawable-nodpi/memo_template.jpg
+          cp "$GITHUB_WORKSPACE/new_memo_template.png" app/src/main/res/drawable-nodpi/memo_template.png
+
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
