@@ -44,6 +44,7 @@ jobs:
           python3 "$GITHUB_WORKSPACE/patch_v35.py"
           python3 "$GITHUB_WORKSPACE/patch_v36.py"
           python3 "$GITHUB_WORKSPACE/patch_v37.py"
+          python3 "$GITHUB_WORKSPACE/patch_v38.py"
 
       - name: Add Summary Printer
         working-directory: ${{ env.PROJECT_DIR }}
@@ -66,12 +67,24 @@ jobs:
           m.write_text(ms,encoding="utf-8")
           PY
 
-      - name: Replace memo template with new design
+      - name: Replace memo template at original size
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          cp app/src/main/res/drawable-nodpi/memo_template.jpg app/src/main/res/drawable-nodpi/memo_template_old.jpg
-          rm -f app/src/main/res/drawable-nodpi/memo_template.jpg
-          cp "$GITHUB_WORKSPACE/new_memo_template.png" app/src/main/res/drawable-nodpi/memo_template.png
+          python3 - <<'PY'
+          from pathlib import Path
+          import urllib.request
+          from PIL import Image
+          old=Path('app/src/main/res/drawable-nodpi/memo_template.jpg')
+          new=Path('/tmp/new_memo_template.png')
+          url='https://raw.githubusercontent.com/mdrafi2038-glitch/MemoPrinter80mm/1f1fec8d28e341772c6b8637752e2d6a703bcdd0/new_memo_template.png'
+          urllib.request.urlretrieve(url,new)
+          with Image.open(old) as ref:
+              size=ref.size
+          with Image.open(new) as src:
+              src=src.convert('RGB').resize(size,Image.Resampling.LANCZOS)
+              src.save('app/src/main/res/drawable-nodpi/memo_template.jpg','JPEG',quality=95)
+          print('New memo resized to original template size:',size)
+          PY
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
