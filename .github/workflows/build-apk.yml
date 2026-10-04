@@ -84,7 +84,17 @@ jobs:
           with Image.open(old) as ref:
               size=ref.size
           with Image.open(new) as src:
-              src=src.convert('RGB').resize(size,Image.Resampling.LANCZOS)
+              # The uploaded template may contain transparency. Converting RGBA
+              # directly to RGB makes transparent pixels black, which causes
+              # the Preview to appear as a giant black rectangle.
+              if src.mode in ('RGBA','LA') or 'transparency' in src.info:
+                  src=src.convert('RGBA')
+                  bg=Image.new('RGB',src.size,'white')
+                  bg.paste(src,(0,0),src.getchannel('A'))
+                  src=bg
+              else:
+                  src=src.convert('RGB')
+              src=src.resize(size,Image.Resampling.LANCZOS)
               src.save('app/src/main/res/drawable-nodpi/memo_template.jpg','JPEG',quality=95)
           print('New memo resized to original template size:',size)
           PY
