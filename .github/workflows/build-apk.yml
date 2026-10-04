@@ -43,6 +43,15 @@ jobs:
           python3 "$GITHUB_WORKSPACE/patch_v34.py"
           python3 "$GITHUB_WORKSPACE/patch_v35.py"
           python3 "$GITHUB_WORKSPACE/patch_v36.py"
+          python3 "$GITHUB_WORKSPACE/patch_v37.py"
+
+      - name: Apply new memo template
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          curl -L --fail -o /tmp/new_memo_template.png https://raw.githubusercontent.com/mdrafi2038-glitch/MemoPrinter80mm/acdfb6c2cf909d3f89c58a63fde2fac9be51ee96/new_memo_template.png
+          if [ -f app/src/main/res/drawable-nodpi/memo_template.jpg ]; then cp app/src/main/res/drawable-nodpi/memo_template.jpg app/src/main/res/drawable-nodpi/memo_template_old.jpg; fi
+          cp /tmp/new_memo_template.png app/src/main/res/drawable-nodpi/memo_template.png
+          rm -f app/src/main/res/drawable-nodpi/memo_template.jpg
 
       - name: Add Summary Printer
         working-directory: ${{ env.PROJECT_DIR }}
