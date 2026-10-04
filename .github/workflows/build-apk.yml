@@ -74,7 +74,8 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import urllib.request
-          from PIL import Image
+          from PIL import Image, ImageFile
+          ImageFile.LOAD_TRUNCATED_IMAGES=True
           old=Path('app/src/main/res/drawable-nodpi/memo_template.jpg')
           new=Path('/tmp/new_memo_template.png')
           url='https://raw.githubusercontent.com/mdrafi2038-glitch/MemoPrinter80mm/1f1fec8d28e341772c6b8637752e2d6a703bcdd0/new_memo_template.png'
