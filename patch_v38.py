@@ -16,6 +16,7 @@ old = '''            ImageView thumb=new ImageView(this);
             thumb.setScaleType(ImageView.ScaleType.FIT_CENTER);
             thumb.setBackgroundColor(WHITE);
             thumb.setContentDescription("Saved memo preview");
+
             LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,dp(260));
             tp.setMargins(0,dp(8),0,dp(8));
             r.addView(thumb,tp);
@@ -26,6 +27,7 @@ new = '''            ImageView thumb=new ImageView(this);
             thumb.setScaleType(ImageView.ScaleType.FIT_CENTER);
             thumb.setBackgroundColor(WHITE);
             thumb.setContentDescription("Saved memo preview");
+
             LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,dp(260));
             tp.setMargins(0,dp(8),0,dp(8));
             r.addView(thumb,tp);
