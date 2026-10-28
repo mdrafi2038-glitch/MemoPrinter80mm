@@ -32,7 +32,7 @@ public class SalesFeaturesActivity extends Activity{
   if(n==null)return "";
   String z=java.text.Normalizer.normalize(n.trim(),java.text.Normalizer.Form.NFKC);
   // Ignore all whitespace and case differences for every product.
-  z=z.replaceAll("\\s+","").toLowerCase(Locale.ROOT);
+  z=z.replaceAll("[\\s\\p{Z}]+","").toLowerCase(Locale.ROOT);
   // Known spelling variants map to one canonical product key.
   if(z.equals("৮পিকোরিয়ান")||z.equals("৮কোরিয়ান")||z.equals("8pkorean")||z.equals("8korean")) return "8pkorean";
   if(z.equals("কারবো")||z.equals("কার্বো")||z.equals("কার্বোনারা")||z.equals("কার্বোবোনারা")) return "কারবো";
