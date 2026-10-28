@@ -30,13 +30,44 @@ public class SalesFeaturesActivity extends Activity{
  String productMatchKey(String n){
   if(n==null)return "";
   String z=java.text.Normalizer.normalize(n.trim(),java.text.Normalizer.Form.NFKC);
-  // Ignore all whitespace when comparing product names.
-  // "8P Korean", "8PKorean" and "8P  Korean" are the same product.
-  z=z.replaceAll("\\s+","");
-  return z.toLowerCase(Locale.ROOT);
+  // Ignore all whitespace and case differences for every product.
+  z=z.replaceAll("\\s+","").toLowerCase(Locale.ROOT);
+  // Known spelling variants map to one canonical product key.
+  if(z.equals("৮পিকোরিয়ান")||z.equals("৮কোরিয়ান")||z.equals("8pkorean")||z.equals("8korean")) return "8pkorean";
+  if(z.equals("কারবো")||z.equals("কার্বো")||z.equals("কার্বোনারা")||z.equals("কার্বোবোনারা")) return "কারবো";
+  return z;
  }
  boolean isRamenCombo(String n){if(n==null)return false;String z=n.trim();if(isPlainRamen(z))return true;if(!z.contains("+"))return z.toLowerCase(Locale.ROOT).contains("ramen")||z.contains("রামেন")||isRamenFlavorToken(z);for(String part:z.split("\\+"))if(isRamenFlavorToken(cleanRamenToken(part)))return true;return false;}
- LinkedHashMap<String,Double> summaryData(String date){LinkedHashMap<String,Double> m=new LinkedHashMap<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){JSONObject memo=a.getJSONObject(i);if(date!=null&&!date.equals(memo.optString("date")))continue;JSONArray q=memo.optJSONArray("items");if(q==null)continue;for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);String n=x.optString("name").trim();if(n.isEmpty()||isRamenCombo(n))continue;String old=null;String nk=productMatchKey(n);for(String k:m.keySet())if(productMatchKey(k).equals(nk)){old=k;break;}double v=summaryQtyInPieces(n,x.optString("price"),x.optString("qty"));if(old==null)m.put(n,v);else m.put(old,m.get(old)+v);}}}catch(Exception ignored){}return m;}
+ void addSummaryProduct(LinkedHashMap<String,Double> m,String name,double qty){
+  if(name==null||name.trim().isEmpty())return;
+  String shown=name.trim(); String key=productMatchKey(shown); String existing=null;
+  for(String k:m.keySet())if(productMatchKey(k).equals(key)){existing=k;break;}
+  if(existing==null)m.put(shown,qty);else m.put(existing,m.get(existing)+qty);
+ }
+ LinkedHashMap<String,Double> summaryData(String date){
+  LinkedHashMap<String,Double> m=new LinkedHashMap<>();
+  try{
+   JSONArray a=mainHistory();
+   for(int i=0;i<a.length();i++){
+    JSONObject memo=a.getJSONObject(i);
+    if(date!=null&&!date.equals(memo.optString("date")))continue;
+    JSONArray q=memo.optJSONArray("items"); if(q==null)continue;
+    for(int j=0;j<q.length();j++){
+     JSONObject x=q.getJSONObject(j); String n=x.optString("name").trim();
+     if(n.isEmpty()||isRamenCombo(n))continue;
+     double qty=summaryQtyInPieces(n,x.optString("price"),x.optString("qty"));
+     // Split explicit product combinations equally: "চিজ+কারবো" / 12 pcs => 6 pcs each.
+     if(n.contains("+")){
+      ArrayList<String> parts=new ArrayList<>();
+      for(String part:n.split("\\+")){String p=part.trim();if(!p.isEmpty()&&!parts.contains(p))parts.add(p);}
+      if(parts.size()>1){double each=qty/parts.size();for(String part:parts)addSummaryProduct(m,part,each);continue;}
+     }
+     addSummaryProduct(m,n,qty);
+    }
+   }
+  }catch(Exception ignored){}
+  return m;
+ }
  LinkedHashMap<String,Double> ramenSummaryData(String date){LinkedHashMap<String,Double> r=new LinkedHashMap<>();try{JSONArray a=mainHistory();for(int i=0;i<a.length();i++){JSONObject memo=a.getJSONObject(i);if(date!=null&&!date.equals(memo.optString("date")))continue;JSONArray q=memo.optJSONArray("items");if(q==null)continue;for(int j=0;j<q.length();j++){JSONObject x=q.getJSONObject(j);String n=x.optString("name").trim();if(n.isEmpty()||!isRamenCombo(n))continue;double qty=summaryQtyInPieces(n,x.optString("price"),x.optString("qty"));if(qty<=0)continue;if(isPlainRamen(n)){r.put("Ramen",r.containsKey("Ramen")?r.get("Ramen")+qty:qty);continue;}String base=n.replaceAll("(?i)ramen","").replace("রামেন","").replaceAll("=\\s*[0-9০-৯.]+","").trim();String[] parts=base.split("\\+");ArrayList<String> flavors=new ArrayList<>();for(String part:parts){String f=cleanRamenToken(part);if(!f.isEmpty()&&!flavors.contains(f))flavors.add(f);}if(flavors.isEmpty())continue;double each=qty/flavors.size();for(String f:flavors){String old=null;for(String k:r.keySet())if(k.equalsIgnoreCase(f)){old=k;break;}if(old!=null)r.put(old,r.get(old)+each);else r.put(f,each);}}}}catch(Exception ignored){}return r;}
  JSONArray mainHistory(){try{return new JSONArray(mainPrefs().getString("history","[]"));}catch(Exception e){return new JSONArray();}}
  android.content.SharedPreferences mainPrefs(){return getSharedPreferences("MainActivity",MODE_PRIVATE);}
